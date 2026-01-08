@@ -11,7 +11,8 @@ from ai_services.ai_platform.llm.gemini_processor import GeminiProcessor
 from ai_services.ai_platform.llm.cost_calculator import CostCalculator
 
 from ai_services.refinery.subtitle_merger.service import SubtitleMergerService
-from ai_services.refinery.subtitle_merger.schemas import SubtitleMergerPayload
+from ai_services.schemas.refinery.subtitle_merger import SubtitleMergerPayload
+from ai_services.utils.config_loader import AIConfigLoader
 
 from core.exceptions import BizException
 from core.error_codes import ErrorCode
@@ -29,23 +30,24 @@ class RefinerySubtitleMergerHandler(BaseTaskHandler):
         self.logger.info(f"🚀 Starting REFINERY_SUBTITLE_MERGER Task: {task.id}")
 
         # [架构升级] 加载服务配置
-        try:
-            config_path = Path(settings.BASE_DIR) / "ai_services" / "configs" / "ai_inference_config.yaml"
-            with open(config_path, encoding='utf-8') as f:
-                service_configs = yaml.safe_load(f)
+        # 使用单例加载器，无需重复读取文件
+        subtitle_merger_config = AIConfigLoader().get_config("subtitle_merger")
 
-            subtitle_merger_config = service_configs.get("subtitle_merger", {})
-        except Exception as e:
-            raise BizException(ErrorCode.LLM_INFERENCE_ERROR, f"Failed to load service config: {e}")
+        # --- 0. 解析运行模式 ---
+        # 从 Payload 中提取 mode，默认为 PROD
+        mode = task.payload.get("mode", "PROD")
+        is_debug = (mode == "DEBUG")
 
         # 1. 基础设施
-        debug_dir = settings.SHARED_LOG_ROOT / f"refinery_subtitle_merger_{task.id}_debug"
-        debug_dir.mkdir(parents=True, exist_ok=True)
+        debug_dir = None
+        if is_debug:
+            debug_dir = settings.SHARED_LOG_ROOT / f"refinery_subtitle_merger_{task.id}_debug"
+            debug_dir.mkdir(parents=True, exist_ok=True)
 
         gemini_processor = GeminiProcessor(
             api_key=settings.GOOGLE_API_KEY,
             logger=self.logger,
-            debug_mode=True,
+            debug_mode=is_debug,  # [优化] 动态控制 Debug 模式
             debug_dir=debug_dir
         )
 
@@ -74,8 +76,12 @@ class RefinerySubtitleMergerHandler(BaseTaskHandler):
             raise e
 
         # 4. 结果落盘
+        # [隔离性优化] 增加租户(Organization)隔离: shared_tmp / org_id / task_workspace / file
+        # 使用 org_id (UUID) 而不是 edge_id，因为 Edge 可能更换，但租户不变
+        org_id = str(task.organization.org_id) if task.organization else "unknown_org"
+        
         output_filename = f"refinery_subtitle_merger_result_{task.id}.json"
-        output_dir = settings.SHARED_TMP_ROOT / f"refinery_subtitle_merger_{task.id}_workspace"
+        output_dir = settings.SHARED_TMP_ROOT / org_id / f"refinery_subtitle_merger_{task.id}_workspace"
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / output_filename
 

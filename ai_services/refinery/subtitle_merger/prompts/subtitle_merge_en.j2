@@ -17,4 +17,6 @@ Each object in the `merge_plan` represents one merge operation and contains:
 **IMPORTANT:** For lines that are already independent sentences and do not need merging, do **not** generate any instructions for them.
 
 Input Data:
-{subtitles_json}
+{% for sub in subtitles %}
+[ID:{{ sub.index }}] D:{{ sub.duration }}s G:{{ sub.gap }}s | {{ sub.content }}
+{% endfor %}

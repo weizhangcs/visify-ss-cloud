@@ -8,8 +8,8 @@ from task_manager.handlers.registry import HandlerRegistry
 
 from ai_services.ai_platform.llm.gemini_processor import GeminiProcessor
 from ai_services.ai_platform.llm.cost_calculator import CostCalculator
-from ai_services.biz_services.subtitle_merger.service import SubtitleMergerService
-from ai_services.biz_services.subtitle_merger.schemas import SubtitleMergerPayload
+from ai_services.refinery.subtitle_merger.service import SubtitleMergerService
+from ai_services.schemas.refinery.subtitle_merger import SubtitleMergerPayload
 
 from core.exceptions import BizException
 from core.error_codes import ErrorCode

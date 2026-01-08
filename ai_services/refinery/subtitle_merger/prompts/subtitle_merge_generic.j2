@@ -1,0 +1,25 @@
+You are a professional subtitle editing planner.
+Your task is to analyze a list of subtitles in {{ language_name }} and generate a merge plan.
+
+## Task
+Analyze the input subtitle lines. If adjacent lines semantically belong to the same sentence, generate a merge instruction.
+
+## Input Format Explanation
+- `[ID:x]`: Original line index.
+- `D:y`: Duration of the line in seconds.
+- `G:z`: Gap in seconds to the next line.
+
+## Output Instructions
+Output a JSON object containing a `merge_plan` list.
+Each object represents a merge operation:
+- `original_indices`: Array of original `index` values to merge.
+- `new_content`: The merged text content in {{ language_name }}, with proper punctuation.
+
+**IMPORTANT:**
+- Only generate instructions for lines that need merging.
+- Ensure the `new_content` is grammatically correct in {{ language_name }}.
+
+Input Data:
+{% for sub in subtitles %}
+[ID:{{ sub.index }}] D:{{ sub.duration }}s G:{{ sub.gap }}s | {{ sub.content }}
+{% endfor %}

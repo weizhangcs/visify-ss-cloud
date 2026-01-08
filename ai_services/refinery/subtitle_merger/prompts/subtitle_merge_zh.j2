@@ -17,4 +17,6 @@
 **重要：** 对于那些不需要合并的、本身就是独立句子的行，**不要**为它们生成任何指令。
 
 输入数据：
-{subtitles_json}
+{% for sub in subtitles %}
+[ID:{{ sub.index }}] D:{{ sub.duration }}s G:{{ sub.gap }}s | {{ sub.content }}
+{% endfor %}

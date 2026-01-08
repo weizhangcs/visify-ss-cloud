@@ -147,12 +147,14 @@ class GeminiProcessor:
 
         final_config = self._prepare_config(temperature, response_schema, config, kwargs)
 
-        self._log_payload("request", timestamp, {
-            "model": model_name,
-            "prompt_preview": str(prompt)[:200],
-            "schema": response_schema.__name__ if response_schema else "None",
-            "config": str(final_config)
-        })
+        # [Fix] 仅在 Debug 模式下记录完整请求日志，避免 PROD 模式下的性能开销和日志噪音
+        if self.debug_mode:
+            self._log_payload("request", timestamp, {
+                "model": model_name,
+                "prompt": str(prompt),  # 记录全量 Prompt
+                "schema": response_schema.__name__ if response_schema else "None",
+                "config": str(final_config)
+            })
 
         def api_call():
             return self._client.models.generate_content(
@@ -172,10 +174,12 @@ class GeminiProcessor:
                 request_count=1 + retry_count
             )
 
-            self._log_payload("response", timestamp, {
-                "usage": usage.model_dump(),
-                "result_preview": str(result)[:200]
-            })
+            # [Fix] 仅在 Debug 模式下记录完整响应日志
+            if self.debug_mode:
+                self._log_payload("response", timestamp, {
+                    "usage": usage.model_dump(),
+                    "result": str(result)  # 记录全量 Result
+                })
 
             return result, usage
 
