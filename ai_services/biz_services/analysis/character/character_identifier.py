@@ -361,8 +361,11 @@ class CharacterIdentifier(AIServiceMixin):
             log_entries.append(dossier_labels.get('dossier_scene_header', "--- Scene ID: {scene_id} ---").format(
                 scene_id=scene_id) + f" ({scene_type_text})")
 
+            # [Upgrade] 同时注入核心叙事(Context)和角色动态(Interaction)
             log_entries.append(
-                f"{dossier_labels.get('dossier_dynamics_label', 'Plot Dynamics:')} {scene.character_dynamics}")
+                f"{dossier_labels.get('dossier_summary_label', 'Core Event:')} {scene.narrative_summary}")
+            log_entries.append(
+                f"{dossier_labels.get('dossier_dynamics_label', 'Character Dynamics:')} {scene.character_dynamics}")
 
             if scene.captions:
                 log_entries.append(dossier_labels.get('dossier_caption_header', 'Relevant Captions:'))

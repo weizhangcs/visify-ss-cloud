@@ -49,6 +49,9 @@ class NarrationGenerator(BaseRagGenerator):
             work_dir=work_dir
         )
 
+        # [Fix] 将 prompts_dir 保存为实例属性，以供其他方法使用
+        self.prompts_dir = prompts_dir
+
         self.metadata_dir = metadata_dir
         # 加载内部配置
         self.prompt_definitions = self._load_internal_config("prompt_definitions.json")
@@ -206,7 +209,7 @@ class NarrationGenerator(BaseRagGenerator):
             constraints = f"\n{c_def.get('duration_guideline', '')}{c_def.get('char_limit_instruction', '')}".format(
                 **render_ctx)
 
-        base_template = self._load_prompt_template(lang, "narration_generator")
+        base_template = self._load_prompt_template(self.prompts_dir, lang, "narration_generator")
         return base_template.format(
             perspective=perspective, style=style, narrative_focus=focus + constraints, rag_context=context
         )

@@ -23,13 +23,12 @@ class TaskCreateRequest(BaseModel):
             Task.TaskType.GENERATE_EDITING_SCRIPT,
             Task.TaskType.LOCALIZE_NARRATION,
             Task.TaskType.GENERATE_DUBBING,
-            Task.TaskType.VISUAL_ANALYSIS,
             Task.TaskType.SUBTITLE_CONTEXT,
             Task.TaskType.CHARACTER_PRE_ANNOTATOR,
             Task.TaskType.SCENE_PRE_ANNOTATOR,
             Task.TaskType.VISUAL_ANALYZER,
-            Task.TaskType.SUBTITLE_MERGER
-
+            Task.TaskType.SUBTITLE_MERGER,
+            "REFINERY_SUBTITLE_MERGER"
         ]
         # 注意：这里 v 是字符串，需要和 Model Enum 的 value 进行比对
         if v not in allowed:

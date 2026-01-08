@@ -56,8 +56,8 @@ def create_task(request, data: TaskCreateRequest):
         Task.TaskType.GENERATE_DUBBING.value: "dubbing_script",
         Task.TaskType.LOCALIZE_NARRATION.value: "localized_script",
         Task.TaskType.VISUAL_ANALYZER.value: "visual_analysis",
-        Task.TaskType.SLICE_GROUPER.value: "scene_groups",
-        Task.TaskType.SUBTITLE_MERGER.value: "subtitle_merger"
+        Task.TaskType.SUBTITLE_MERGER.value: "subtitle_merger",
+        Task.TaskType.SLICE_REGROUPER.value: "scene_regrouping"
     }
 
     output_prefix = output_prefixes.get(data.task_type)

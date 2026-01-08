@@ -14,12 +14,15 @@ QUEUE_ROUTING = {
     Task.TaskType.GENERATE_NARRATION: 'queue_gemini',
     Task.TaskType.LOCALIZE_NARRATION: 'queue_gemini',
     Task.TaskType.CHARACTER_IDENTIFIER: 'queue_gemini',
-    Task.TaskType.VISUAL_ANALYSIS: 'queue_gemini',
     # B-Roll 选择主要使用 Gemini 进行语义分析
     Task.TaskType.GENERATE_EDITING_SCRIPT: 'queue_gemini',
     Task.TaskType.SUBTITLE_CONTEXT: 'queue_gemini',
     Task.TaskType.VISUAL_ANALYZER: 'queue_gemini',
     Task.TaskType.SUBTITLE_MERGER: 'queue_gemini',
+    Task.TaskType.SLICE_REGROUPER: 'queue_gemini',
+
+    # [旁路重构]
+    "REFINERY_SUBTITLE_MERGER": 'queue_gemini',
 
     # [Step 1.5 New] Route new tasks to Gemini Queue
     Task.TaskType.CHARACTER_PRE_ANNOTATOR: 'queue_gemini',

@@ -29,3 +29,10 @@ broll_selector_service:
   default_model: "gemini-2.5-pro"
   default_temp: 0.1
   default_lang: "en"
+
+# 字幕合并服务 (SubtitleMerger)
+subtitle_merger:
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+  batch_size: 200
+  max_retries: 3

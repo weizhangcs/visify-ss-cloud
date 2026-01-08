@@ -79,10 +79,17 @@ class RagContentFormatter:
         """
 
         # --- A. 元数据块 (Metadata Block) ---
+        # [Refactor] 移除媒资ID，改用场景UUID作为索引
         metadata_lines = [
             labels.get("metadata_block_header", "--- 元数据块 ---"),
-            f"{labels.get('asset_id_label', '媒资ID')}: {asset_id}",
+            f"{labels.get('scene_uuid_label', '场景索引')}: {scene.scene_uuid}",
             f"{labels.get('scene_id_label', '场景ID')}: {scene.local_id}",  # V6 使用 local_id
+        ]
+
+        # --- B. 场景描述块 (Scene Description Block) ---
+        # [New] 聚合所有描述性字段
+        description_lines = [
+            labels.get("scene_description_header", "--- 场景描述 ---"),
             f"{labels.get('location_label', '地点')}: {scene.inferred_location or 'N/A'}",
             f"{labels.get('mood_label', '氛围')}: {scene.mood_and_atmosphere or 'N/A'}",
         ]
@@ -91,14 +98,28 @@ class RagContentFormatter:
         present_characters = list(set(d.speaker for d in scene.dialogues if d.speaker))
         if present_characters:
             char_label = labels.get('characters_label', '出场角色')
-            metadata_lines.append(f"{char_label}: {', '.join(present_characters)}")
+            description_lines.append(f"{char_label}: {', '.join(present_characters)}")
 
-        # 核心叙事 (Character Dynamics 通常承载了动作描述)
+        # [Upgrade] 完整映射 V6 Dataset 的多模态描述字段
         summary_label = labels.get('narrative_summary_label', '本场景的核心叙事是')
-        summary = scene.character_dynamics or '未描述'
-        metadata_lines.append(f"{summary_label}: {summary}")
+        summary = scene.narrative_summary or '未描述'
+        description_lines.append(f"{summary_label}: {summary}")
 
-        # --- B. 推理事实块 (Inferred Facts Block) ---
+        if scene.character_dynamics:
+            dyn_label = labels.get('character_dynamics_label', '角色动态')
+            description_lines.append(f"{dyn_label}: {scene.character_dynamics}")
+
+        if scene.camera_movement:
+            cam_label = labels.get('camera_movement_label', '运镜分析')
+            description_lines.append(f"{cam_label}: {scene.camera_movement}")
+
+        # --- C. 台词对话块 (Dialogues Block) ---
+        dialogue_lines = [labels.get("dialogue_header", "---台词对话 ---")]
+        for d in scene.dialogues:
+            dialogue_lines.append(f"- {d.speaker}: {d.content}")
+
+        # --- D. 推理事实块 (Inferred Facts Block) ---
+        # [Refactor] 移至最后
         inference_lines = [labels.get("inference_header", "---推理事实---")]
         if facts:
             facts_by_char = defaultdict(list)
@@ -114,20 +135,15 @@ class RagContentFormatter:
                     facts_str = "，".join(fact_list) + "。"
                     inference_lines.append(f"{char_name}{prefix_label}: {facts_str}")
 
-        # --- C. 台词对话块 (Dialogues Block) ---
-        dialogue_lines = [labels.get("dialogue_header", "---台词对话 ---")]
-        for d in scene.dialogues:
-            dialogue_lines.append(f"- {d.speaker}: {d.content}")
-
-        # --- D. 拼装 ---
-        final_blocks = [metadata_lines]
-
-        # 只有当有内容时才添加块，避免产生空标题
-        if len(inference_lines) > 1:
-            final_blocks.append(inference_lines)
+        # --- E. 拼装 (Order: Metadata -> Description -> Dialogue -> Facts) ---
+        final_blocks = [metadata_lines, description_lines]
 
         # 对话通常都有，但也防御一下
         if len(dialogue_lines) > 1:
             final_blocks.append(dialogue_lines)
+
+        # 只有当有内容时才添加块，避免产生空标题
+        if len(inference_lines) > 1:
+            final_blocks.append(inference_lines)
 
         return "\n".join(["\n".join(block) for block in final_blocks])

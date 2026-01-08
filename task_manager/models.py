@@ -22,13 +22,15 @@ class Task(TimeStampedModel):
         GENERATE_DUBBING = "GENERATE_DUBBING", _("Generate Dubbing")
         GENERATE_EDITING_SCRIPT = "GENERATE_EDITING_SCRIPT", _("Generate Editing Script")
         LOCALIZE_NARRATION = "LOCALIZE_NARRATION", _("Localize Narration")
-        VISUAL_ANALYSIS = 'VISUAL_ANALYSIS', _('Visual Analysis & Refinement')
         SUBTITLE_CONTEXT = 'SUBTITLE_CONTEXT', 'Subtitle Context Analysis'
         CHARACTER_PRE_ANNOTATOR = 'CHARACTER_PRE_ANNOTATOR', _('Character Pre-Annotator')
         SCENE_PRE_ANNOTATOR = 'SCENE_PRE_ANNOTATOR', _('Scene Pre-Annotator')
         VISUAL_ANALYZER = 'VISUAL_ANALYZER', _('Visual Analyzer')
-        SLICE_GROUPER = 'SLICE_GROUPER', _('Slice Grouper')
         SUBTITLE_MERGER = 'SUBTITLE_MERGER', _('Subtitle Merger')
+        SLICE_REGROUPER = 'SLICE_REGROUPER', _('Slice Regrouper')
+
+        # [旁路重构] 新的 Refinery 任务
+        REFINERY_SUBTITLE_MERGER = 'REFINERY_SUBTITLE_MERGER', _('[Refinery] Subtitle Merger')
 
     class TaskStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending")
