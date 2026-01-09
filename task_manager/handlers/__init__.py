@@ -17,3 +17,6 @@ from . import visual_analyzer
 from . import subtitle_merger
 from . import slice_regrouper
 from .refinery import visual_analyzer
+from .refinery import slice_regrouper
+from .refinery import character_identifier
+from .refinery import subtitle_merger

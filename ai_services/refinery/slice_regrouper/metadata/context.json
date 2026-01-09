@@ -1,0 +1,20 @@
+{
+  "zh": {
+    "type_mapping": {
+      "visual_segment": "视觉类",
+      "dialogue": "剧情类"
+    },
+    "speaker_unknown": "未确认的角色",
+    "vis_prefix": "  视觉: ",
+    "sub_prefix": "  对白: "
+  },
+  "en": {
+    "type_mapping": {
+      "visual_segment": "Visual",
+      "dialogue": "Dialogue"
+    },
+    "speaker_unknown": "Unknown Character",
+    "vis_prefix": "  Vis: ",
+    "sub_prefix": "  Sub: "
+  }
+}

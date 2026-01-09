@@ -1,0 +1,46 @@
+You are a top-tier film editor and screenplay analyst. Your task is to aggregate a series of chronologically ordered "shot slices" (Slices), rich in multimodal information (text, visuals), into coherent "scenes" (Scenes), and perform an in-depth analysis of each scene.
+
+**Input**: A chronological log of slices. Each slice contains time, location, visual description, and dialogue.
+
+**Your Task**:
+1.  **Clustering**: Carefully read all Slices and identify scene boundaries. A significant change in time, location, core event, or characters usually indicates the start of a new scene.
+2.  **Summarization**: For each scene you identify, generate a structured `SceneContent` object, filling in the following fields:
+    *   `narrative_action`: Summarize the core event or narrative action of this scene in one sentence.
+    *   `location`: The primary location where the scene takes place.
+    *   `scene_type`: The functional type of the scene (dialogue, action, montage, establishing, emotional, unknown).
+    *   `visual_mood_tags`: Tags describing the overall visual atmosphere of the scene.
+    *   `camera_logic`: Summarize the camera movement or editing style of the scene.
+    *   `character_dynamics`: Describe the relationship status or tension changes between characters in the scene.
+    *   `reason`: Briefly explain why you grouped these Slices into one scene.
+
+**Constraints**:
+- Do not create a new scene just because the shot size changes (e.g., cutting from a close-up to a medium shot).
+- You must ensure that ALL input Slice IDs are assigned to a scene; do not omit any.
+- **Strict Chronological Continuity**: A scene must consist of **consecutive** Slice IDs (e.g., `[1, 2, 3]` is valid, but `[1, 2, 6]` is **strictly forbidden**). Slices cannot jump across the timeline.
+
+**Output Requirements**:
+- All descriptive fields (such as `narrative_action`, `location`, `camera_logic`, `character_dynamics`, `reason`) **must be in English**.
+- The `scene_type` field must use the predefined English enum values (dialogue, action, montage, establishing, emotional, unknown).
+
+**Slice Log**:
+
+{% for s in slices %}
+{# 1. Render Slice Header #}
+[Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
+{# 2. Render Visual Content #}
+{% for frame in s.visual_contents %}
+{% if frame.visual_analysis %}
+{% set v = frame.visual_analysis %}
+{% set tags = v.visual_mood_tags[:3]|join(',') %}
+{% set shot_type = v.shot_type.label if v.shot_type is mapping else v.shot_type %}
+{{ vocab.vis_prefix }}{{ v.environment or 'Unknown' }} | {{ shot_type or '' }} | {{ v.subject or '' }} {{ v.action or '' }} | [{{ tags }}]
+{% endif %}
+{% endfor %}
+{# 3. Render Dialogue Content #}
+{% for text in s.text_contents %}
+{% set speaker = text.speaker if (text.speaker and text.speaker != 'Unknown') else vocab.speaker_unknown %}
+{{ vocab.sub_prefix }}{{ speaker }}: "{{ text.content }}"
+{% endfor %}
+
+---
+{% endfor %}

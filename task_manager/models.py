@@ -33,6 +33,7 @@ class Task(TimeStampedModel):
         REFINERY_SUBTITLE_MERGER = 'REFINERY_SUBTITLE_MERGER', _('[Refinery] Subtitle Merger')
         REFINERY_CHARACTER_IDENTIFIER = 'REFINERY_CHARACTER_IDENTIFIER', _('[Refinery] Character Identifier')
         REFINERY_VISUAL_ANALYZER = 'REFINERY_VISUAL_ANALYZER', _('[Refinery] Visual Analyzer')
+        REFINERY_SLICE_REGROUPER = 'REFINERY_SLICE_REGROUPER', _('[Refinery] Slice Regrouper')
 
     class TaskStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending")

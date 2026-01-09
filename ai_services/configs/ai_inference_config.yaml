@@ -43,3 +43,10 @@ visual_analyzer:
   batch_size: 20
   max_workers: 5
   max_retries: 3
+
+# 场景聚类服务 (SliceRegrouper)
+slice_regrouper:
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+  max_slices_per_batch: 200
+  max_retries: 3

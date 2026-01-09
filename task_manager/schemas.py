@@ -28,9 +28,10 @@ class TaskCreateRequest(BaseModel):
             Task.TaskType.SCENE_PRE_ANNOTATOR,
             Task.TaskType.VISUAL_ANALYZER,
             Task.TaskType.SUBTITLE_MERGER,
-            "REFINERY_SUBTITLE_MERGER",
+            Task.TaskType.REFINERY_SUBTITLE_MERGER,
             Task.TaskType.REFINERY_CHARACTER_IDENTIFIER,
-            Task.TaskType.REFINERY_VISUAL_ANALYZER
+            Task.TaskType.REFINERY_VISUAL_ANALYZER,
+            Task.TaskType.REFINERY_SLICE_REGROUPER
         ]
         # 注意：这里 v 是字符串，需要和 Model Enum 的 value 进行比对
         if v not in allowed:
