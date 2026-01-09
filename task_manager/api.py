@@ -58,7 +58,8 @@ def create_task(request, data: TaskCreateRequest):
         Task.TaskType.VISUAL_ANALYZER.value: "visual_analysis",
         Task.TaskType.SUBTITLE_MERGER.value: "subtitle_merger",
         Task.TaskType.SLICE_REGROUPER.value: "scene_regrouping",
-        Task.TaskType.REFINERY_CHARACTER_IDENTIFIER.value: "refinery_char_id"
+        Task.TaskType.REFINERY_CHARACTER_IDENTIFIER.value: "refinery_char_id",
+        Task.TaskType.REFINERY_VISUAL_ANALYZER.value: "refinery_visual"
     }
 
     output_prefix = output_prefixes.get(data.task_type)

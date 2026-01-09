@@ -35,3 +35,11 @@ subtitle_merger:
   temperature: 0.1
   batch_size: 200
   max_retries: 3
+
+# 视觉分析服务 (VisualAnalyzer)
+visual_analyzer:
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+  batch_size: 20
+  max_workers: 5
+  max_retries: 3

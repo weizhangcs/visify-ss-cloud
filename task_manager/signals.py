@@ -24,6 +24,7 @@ QUEUE_ROUTING = {
     # [旁路重构]
     "REFINERY_SUBTITLE_MERGER": 'queue_gemini',
     Task.TaskType.REFINERY_CHARACTER_IDENTIFIER: 'queue_gemini',
+    Task.TaskType.REFINERY_VISUAL_ANALYZER: 'queue_gemini',
 
     # [Step 1.5 New] Route new tasks to Gemini Queue
     Task.TaskType.CHARACTER_PRE_ANNOTATOR: 'queue_gemini',
