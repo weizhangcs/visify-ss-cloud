@@ -31,6 +31,7 @@ class Task(TimeStampedModel):
 
         # [旁路重构] 新的 Refinery 任务
         REFINERY_SUBTITLE_MERGER = 'REFINERY_SUBTITLE_MERGER', _('[Refinery] Subtitle Merger')
+        REFINERY_CHARACTER_IDENTIFIER = 'REFINERY_CHARACTER_IDENTIFIER', _('[Refinery] Character Identifier')
 
     class TaskStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending")

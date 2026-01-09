@@ -57,7 +57,8 @@ def create_task(request, data: TaskCreateRequest):
         Task.TaskType.LOCALIZE_NARRATION.value: "localized_script",
         Task.TaskType.VISUAL_ANALYZER.value: "visual_analysis",
         Task.TaskType.SUBTITLE_MERGER.value: "subtitle_merger",
-        Task.TaskType.SLICE_REGROUPER.value: "scene_regrouping"
+        Task.TaskType.SLICE_REGROUPER.value: "scene_regrouping",
+        Task.TaskType.REFINERY_CHARACTER_IDENTIFIER.value: "refinery_char_id"
     }
 
     output_prefix = output_prefixes.get(data.task_type)

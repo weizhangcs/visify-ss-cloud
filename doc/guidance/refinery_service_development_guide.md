@@ -133,9 +133,11 @@ class MyService(AIServiceMixin):
 
 ### 步骤 5: 注册与配置
 
-1.  **TaskType**: 在 `task_manager/models.py` (或相关枚举) 中添加新类型。
-2.  **API Schema**: 在 `task_manager/schemas.py` 的白名单中添加该类型。
-3.  **Config**: 在 `ai_services/configs/ai_inference_config.yaml` 中添加默认参数。
+关于任务在 `task_manager` 中的完整注册流程（Model, Schema, Handler Registry, Signals, API），请严格遵循现有文档：
+👉 **添加新任务开发范式**
+
+在此基础上，Refinery 服务还需要额外配置：
+1.  **AI Config**: 在 `ai_services/configs/ai_inference_config.yaml` 中添加该服务的默认推理参数。
 
 ---
 
