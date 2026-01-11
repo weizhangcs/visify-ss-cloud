@@ -27,8 +27,20 @@ class RefineryBaseHandler(BaseTaskHandler):
         # 1. 加载配置
         service_config = AIConfigLoader().get_config(self.config_name)
         
-        # 2. 解析模式
-        mode = task.payload.get("mode", "PROD")
+        # 2. 解析模式 (Mode Resolution)
+        # [策略调整] 优先级: 配置文件(强制覆盖) > 客户端Payload > 默认值
+        # 这样可以在不修改客户端代码的情况下，通过服务端配置强制开启 DEBUG 模式进行排查
+        config_mode = service_config.get("mode")
+        payload_mode = task.payload.get("mode", "PROD")
+
+        if config_mode:
+            mode = config_mode
+            self.logger.info(f"⚙️ Mode overridden by config: {mode}")
+            # [关键] 修改内存中的 payload，确保后续 Service 层校验和逻辑也能感知到强制的模式
+            task.payload["mode"] = mode
+        else:
+            mode = payload_mode
+
         is_debug = (mode == "DEBUG")
         
         # 3. 基础设施

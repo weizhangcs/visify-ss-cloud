@@ -1,5 +1,10 @@
 # ai_services/configs/ai_inference_config.yaml
 # 统一管理所有基于Gemini的AI服务的默认模型和推理参数。
+#
+# [全局参数说明]
+# mode: "DEBUG" | "PROD"
+#   - 默认为空（不设置），此时以客户端 Payload 中的 mode 为准。
+#   - 如果设置为 "DEBUG"，将强制覆盖客户端请求，开启服务端调试日志和文件落盘。
 
 # 人物事实识别服务 (CharacterIdentifier)
 character_identifier:
@@ -7,6 +12,7 @@ character_identifier:
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 150
+  # mode: "DEBUG" # 取消注释以强制开启调试
   max_retries: 3
 
 # 解说词生成服务 (NarrationGenerator)
@@ -31,6 +37,7 @@ broll_selector_service:
 
 # 字幕合并服务 (SubtitleMerger)
 subtitle_merger:
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 200

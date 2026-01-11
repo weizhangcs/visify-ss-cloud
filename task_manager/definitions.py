@@ -13,11 +13,6 @@ class TaskType(models.TextChoices):
     
     # === 旧版原子服务 (Biz Services) ===
     SUBTITLE_CONTEXT = 'SUBTITLE_CONTEXT', _('Subtitle Context Analysis')
-    CHARACTER_PRE_ANNOTATOR = 'CHARACTER_PRE_ANNOTATOR', _('Character Pre-Annotator')
-    SCENE_PRE_ANNOTATOR = 'SCENE_PRE_ANNOTATOR', _('Scene Pre-Annotator')
-    VISUAL_ANALYZER = 'VISUAL_ANALYZER', _('Visual Analyzer')
-    SUBTITLE_MERGER = 'SUBTITLE_MERGER', _('Subtitle Merger')
-    SLICE_REGROUPER = 'SLICE_REGROUPER', _('Slice Regrouper')
 
     # === Refinery 原子服务 (New Architecture) ===
     REFINERY_SUBTITLE_MERGER = 'REFINERY_SUBTITLE_MERGER', _('[Refinery] Subtitle Merger')
@@ -38,9 +33,6 @@ TASK_CONFIGS = {
     TaskType.CHARACTER_IDENTIFIER: TaskConfig(output_prefix="character_facts"),
     TaskType.GENERATE_EDITING_SCRIPT: TaskConfig(output_prefix="editing_script"),
     TaskType.SUBTITLE_CONTEXT: TaskConfig(),
-    TaskType.VISUAL_ANALYZER: TaskConfig(output_prefix="visual_analysis"),
-    TaskType.SUBTITLE_MERGER: TaskConfig(output_prefix="subtitle_merger"),
-    TaskType.SLICE_REGROUPER: TaskConfig(output_prefix="scene_regrouping"),
     
     # Refinery
     # [Optimization] Refinery 任务由 Handler 内部统一管理租户隔离路径 (org_id/workspace)，
@@ -51,8 +43,6 @@ TASK_CONFIGS = {
     TaskType.REFINERY_SLICE_REGROUPER: TaskConfig(),
     
     # 旧版服务 (部分无 output_prefix)
-    TaskType.CHARACTER_PRE_ANNOTATOR: TaskConfig(),
-    TaskType.SCENE_PRE_ANNOTATOR: TaskConfig(),
 
     # B类: 音频密集型
     TaskType.GENERATE_DUBBING: TaskConfig(queue='queue_audio', output_prefix="dubbing_script"),
