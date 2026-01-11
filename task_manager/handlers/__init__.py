@@ -13,4 +13,5 @@ from . import localization
 from .refinery import visual_analyzer
 from .refinery import slice_regrouper
 from .refinery import character_identifier
+from .refinery import slice_analyzer
 from .refinery import subtitle_merger

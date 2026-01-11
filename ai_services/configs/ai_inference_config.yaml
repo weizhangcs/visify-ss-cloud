@@ -57,3 +57,10 @@ slice_regrouper:
   temperature: 0.1
   max_slices_per_batch: 200
   max_retries: 3
+
+# 切片语义分析服务 (SliceAnalyzer)
+slice_analyzer:
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+  batch_size: 50
+  max_retries: 3

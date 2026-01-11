@@ -19,6 +19,7 @@ class TaskType(models.TextChoices):
     REFINERY_CHARACTER_IDENTIFIER = 'REFINERY_CHARACTER_IDENTIFIER', _('[Refinery] Character Identifier')
     REFINERY_VISUAL_ANALYZER = 'REFINERY_VISUAL_ANALYZER', _('[Refinery] Visual Analyzer')
     REFINERY_SLICE_REGROUPER = 'REFINERY_SLICE_REGROUPER', _('[Refinery] Slice Regrouper')
+    REFINERY_SLICE_ANALYZER = 'REFINERY_SLICE_ANALYZER', _('[Refinery] Slice Analyzer')
 
 @dataclass
 class TaskConfig:
@@ -41,6 +42,7 @@ TASK_CONFIGS = {
     TaskType.REFINERY_CHARACTER_IDENTIFIER: TaskConfig(),
     TaskType.REFINERY_VISUAL_ANALYZER: TaskConfig(),
     TaskType.REFINERY_SLICE_REGROUPER: TaskConfig(),
+    TaskType.REFINERY_SLICE_ANALYZER: TaskConfig(),
     
     # 旧版服务 (部分无 output_prefix)
 

@@ -1,0 +1,16 @@
+{
+  "zh": {
+    "visuals_header": "**视觉信息**:",
+    "dialogue_header": "**对白内容**:",
+    "unknown_env": "未知环境",
+    "mood_label": "氛围",
+    "speaker_unknown": "未知角色"
+  },
+  "en": {
+    "visuals_header": "**Visuals**:",
+    "dialogue_header": "**Dialogue**:",
+    "unknown_env": "Unknown",
+    "mood_label": "Mood",
+    "speaker_unknown": "Unknown"
+  }
+}
