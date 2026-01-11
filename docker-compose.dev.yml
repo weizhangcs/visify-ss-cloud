@@ -18,7 +18,7 @@ services:
     image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_base/redis:7-alpine
     restart: always
     ports:
-      - "8637:6379"
+      - "16379:6379"
 
   # --- 应用服务 (源码模式) ---
   web:

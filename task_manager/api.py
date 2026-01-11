@@ -13,6 +13,7 @@ from .models import Task
 from core.auth import EdgeAuth
 from .schemas import TaskCreateRequest, TaskResponse
 from core.error_codes import ErrorCode  # 假设你保留了错误码定义
+from .definitions import TASK_CONFIGS
 
 # 如果你想把 task 相关接口作为一个独立模块路由
 router = Router(auth=EdgeAuth())
@@ -35,6 +36,10 @@ def create_task(request, data: TaskCreateRequest):
             if not isinstance(value, str):
                 raise HttpError(400, f"Path param '{key}' must be a string.")
 
+            # [Optimization] 跳过云存储/网络路径的本地校验
+            if value.startswith(("gs://", "http://", "https://", "s3://")):
+                continue
+
             relative_path = value
             # 假设 settings.SHARED_ROOT 是 Path 对象
             absolute_input_path = settings.SHARED_ROOT / relative_path
@@ -48,23 +53,9 @@ def create_task(request, data: TaskCreateRequest):
     task_payload.update(absolute_paths_to_add)
 
     # --- [逻辑移植] 2. 输出路径生成 ---
-    output_prefixes = {
-        Task.TaskType.CHARACTER_IDENTIFIER.value: "character_facts",
-        Task.TaskType.DEPLOY_RAG_CORPUS.value: "rag_deployment_report",
-        Task.TaskType.GENERATE_NARRATION.value: "narration_script",
-        Task.TaskType.GENERATE_EDITING_SCRIPT.value: "editing_script",
-        Task.TaskType.GENERATE_DUBBING.value: "dubbing_script",
-        Task.TaskType.LOCALIZE_NARRATION.value: "localized_script",
-        Task.TaskType.VISUAL_ANALYZER.value: "visual_analysis",
-        Task.TaskType.SUBTITLE_MERGER.value: "subtitle_merger",
-        Task.TaskType.SLICE_REGROUPER.value: "scene_regrouping",
-        Task.TaskType.REFINERY_CHARACTER_IDENTIFIER.value: "refinery_char_id",
-        Task.TaskType.REFINERY_VISUAL_ANALYZER.value: "refinery_visual",
-        Task.TaskType.REFINERY_SLICE_REGROUPER.value: "refinery_slice_regrouper",
-        Task.TaskType.REFINERY_SUBTITLE_MERGER.value:"refinery_subtitle_merger"
-    }
-
-    output_prefix = output_prefixes.get(data.task_type)
+    # [Refactor] 从集中配置中获取前缀
+    task_config = TASK_CONFIGS.get(data.task_type)
+    output_prefix = task_config.output_prefix if task_config else None
 
     if output_prefix:
         output_filename = f"{output_prefix}_{uuid.uuid4()}.json"

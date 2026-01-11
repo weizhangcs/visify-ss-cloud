@@ -4,41 +4,11 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Task
 from .tasks import execute_cloud_native_task
+from .definitions import TASK_CONFIGS
 
-# --- [新增] 1. 定义路由映射表 ---
-# 这里的 Key 必须与 Task.TaskType 定义完全一致
-# Value 是我们在 Celery 中定义的物理队列名称
+# --- [Refactor] 1. 自动生成路由映射表 ---
 QUEUE_ROUTING = {
-    # === A类: Gemini API 密集型 (低并发，防429) ===
-    # 特点: 强依赖 Google Vertex AI，配额敏感
-    Task.TaskType.GENERATE_NARRATION: 'queue_gemini',
-    Task.TaskType.LOCALIZE_NARRATION: 'queue_gemini',
-    Task.TaskType.CHARACTER_IDENTIFIER: 'queue_gemini',
-    # B-Roll 选择主要使用 Gemini 进行语义分析
-    Task.TaskType.GENERATE_EDITING_SCRIPT: 'queue_gemini',
-    Task.TaskType.SUBTITLE_CONTEXT: 'queue_gemini',
-    Task.TaskType.VISUAL_ANALYZER: 'queue_gemini',
-    Task.TaskType.SUBTITLE_MERGER: 'queue_gemini',
-    Task.TaskType.SLICE_REGROUPER: 'queue_gemini',
-
-    # [旁路重构]
-    Task.TaskType.REFINERY_SUBTITLE_MERGER: 'queue_gemini',
-    Task.TaskType.REFINERY_CHARACTER_IDENTIFIER: 'queue_gemini',
-    Task.TaskType.REFINERY_VISUAL_ANALYZER: 'queue_gemini',
-    Task.TaskType.REFINERY_SLICE_REGROUPER: 'queue_gemini',
-
-    # [Step 1.5 New] Route new tasks to Gemini Queue
-    Task.TaskType.CHARACTER_PRE_ANNOTATOR: 'queue_gemini',
-    Task.TaskType.SCENE_PRE_ANNOTATOR: 'queue_gemini',
-
-    # === B类: 音频/计算密集型 (中等并发) ===
-    # 特点: 涉及 Aliyun CosyVoice (PAI-EAS) 或 Google TTS
-    # 虽然 Google TTS 配额较高，但音频处理本身不仅耗 IO 还耗 CPU (编解码)
-    Task.TaskType.GENERATE_DUBBING: 'queue_audio',
-
-    # === C类: IO 密集型/运维类 (高并发) ===
-    # 特点: 主要是 GCS 文件上传下载、数据库读写，不易触发 API 限制
-    Task.TaskType.DEPLOY_RAG_CORPUS: 'queue_io',
+    task_type: config.queue for task_type, config in TASK_CONFIGS.items()
 }
 
 

@@ -7,6 +7,7 @@ from model_utils.models import TimeStampedModel
 from django_fsm import FSMField, transition
 
 from organization.models import Organization, EdgeInstance
+from .definitions import TaskType  # [Refactor] 引入集中定义
 
 
 class Task(TimeStampedModel):
@@ -15,25 +16,8 @@ class Task(TimeStampedModel):
     v1.2.0-alpha.3: 深度清理冗余，并增强统计能力。
     """
 
-    class TaskType(models.TextChoices):
-        DEPLOY_RAG_CORPUS = "DEPLOY_RAG_CORPUS", _("Deploy RAG Corpus")
-        CHARACTER_IDENTIFIER = "CHARACTER_IDENTIFIER", _("Character Identifier")
-        GENERATE_NARRATION = "GENERATE_NARRATION", _("Generate Narration")
-        GENERATE_DUBBING = "GENERATE_DUBBING", _("Generate Dubbing")
-        GENERATE_EDITING_SCRIPT = "GENERATE_EDITING_SCRIPT", _("Generate Editing Script")
-        LOCALIZE_NARRATION = "LOCALIZE_NARRATION", _("Localize Narration")
-        SUBTITLE_CONTEXT = 'SUBTITLE_CONTEXT', 'Subtitle Context Analysis'
-        CHARACTER_PRE_ANNOTATOR = 'CHARACTER_PRE_ANNOTATOR', _('Character Pre-Annotator')
-        SCENE_PRE_ANNOTATOR = 'SCENE_PRE_ANNOTATOR', _('Scene Pre-Annotator')
-        VISUAL_ANALYZER = 'VISUAL_ANALYZER', _('Visual Analyzer')
-        SUBTITLE_MERGER = 'SUBTITLE_MERGER', _('Subtitle Merger')
-        SLICE_REGROUPER = 'SLICE_REGROUPER', _('Slice Regrouper')
-
-        # [旁路重构] 新的 Refinery 任务
-        REFINERY_SUBTITLE_MERGER = 'REFINERY_SUBTITLE_MERGER', _('[Refinery] Subtitle Merger')
-        REFINERY_CHARACTER_IDENTIFIER = 'REFINERY_CHARACTER_IDENTIFIER', _('[Refinery] Character Identifier')
-        REFINERY_VISUAL_ANALYZER = 'REFINERY_VISUAL_ANALYZER', _('[Refinery] Visual Analyzer')
-        REFINERY_SLICE_REGROUPER = 'REFINERY_SLICE_REGROUPER', _('[Refinery] Slice Regrouper')
+    # 保持 Task.TaskType 的访问方式兼容性
+    TaskType = TaskType
 
     class TaskStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending")
@@ -57,8 +41,9 @@ class Task(TimeStampedModel):
     )
     task_type = models.CharField(  # 【关键修改：改为 models.CharField】
         choices=TaskType.choices,  # 使用原生的 choices 属性
-        max_length=30,
-        verbose_name=_("Task Type")
+        max_length=64,  # [优化] 从 30 扩展到 64，防止 REFINERY_CHARACTER_IDENTIFIER (29 chars) 等长命名溢出
+        verbose_name=_("Task Type"),
+        db_index=True   # [优化] 增加索引，加速按任务类型统计
     )
     status = FSMField(
         default=TaskStatus.PENDING,
@@ -81,6 +66,12 @@ class Task(TimeStampedModel):
         verbose_name = _("Task")
         verbose_name_plural = _("Tasks")
         ordering = ['-created']
+        # [优化] 增加数据库索引以提升查询性能
+        indexes = [
+            models.Index(fields=['organization', '-created']), # 核心场景：获取某租户下的任务列表（按时间倒序）
+            models.Index(fields=['status']),                   # 核心场景：筛选 Pending/Failed 任务
+            models.Index(fields=['created']),                  # 核心场景：Dashboard 按时间范围统计
+        ]
 
     def __str__(self):
         return f"Task {self.id} ({self.task_type}) - {self.status}"

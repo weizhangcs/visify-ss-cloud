@@ -16,23 +16,7 @@ class TaskCreateRequest(BaseModel):
     @classmethod
     def validate_task_type(cls, v: str) -> str:
         # 定义允许云端接收的任务白名单
-        allowed = [
-            Task.TaskType.CHARACTER_IDENTIFIER,
-            Task.TaskType.DEPLOY_RAG_CORPUS,
-            Task.TaskType.GENERATE_NARRATION,
-            Task.TaskType.GENERATE_EDITING_SCRIPT,
-            Task.TaskType.LOCALIZE_NARRATION,
-            Task.TaskType.GENERATE_DUBBING,
-            Task.TaskType.SUBTITLE_CONTEXT,
-            Task.TaskType.CHARACTER_PRE_ANNOTATOR,
-            Task.TaskType.SCENE_PRE_ANNOTATOR,
-            Task.TaskType.VISUAL_ANALYZER,
-            Task.TaskType.SUBTITLE_MERGER,
-            Task.TaskType.REFINERY_SUBTITLE_MERGER,
-            Task.TaskType.REFINERY_CHARACTER_IDENTIFIER,
-            Task.TaskType.REFINERY_VISUAL_ANALYZER,
-            Task.TaskType.REFINERY_SLICE_REGROUPER
-        ]
+        allowed = Task.TaskType.values
         # 注意：这里 v 是字符串，需要和 Model Enum 的 value 进行比对
         if v not in allowed:
             raise ValueError(f"Invalid task_type: {v}. Allowed: {allowed}")
