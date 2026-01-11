@@ -36,6 +36,12 @@ class FrameDataInput(BaseModel):
     visual_analysis: Optional[VisualAnalysisData] = None
     model_config = ConfigDict(extra='ignore')
 
+class SliceAnalysis(BaseModel):
+    narrative_summary: str = Field(..., description="Summary of the narrative content.")
+    visual_summary: str = Field(..., description="Summary of visual elements.")
+    tags: List[str] = Field(default_factory=list, description="Semantic tags.")
+    model_config = ConfigDict(extra='ignore')
+
 class MultimodalSlice(BaseModel):
     """
     [核心容器] 多模态切片。
@@ -46,6 +52,8 @@ class MultimodalSlice(BaseModel):
     type: str
     text_contents: List[SubtitleItem] = Field(default_factory=list)
     visual_contents: List[FrameDataInput] = Field(default_factory=list)
+    # [新增] 上游 Slice Analyzer 的分析结果
+    slice_analysis: Optional[SliceAnalysis] = None
     model_config = ConfigDict(extra='ignore')
 
 # ==============================================================================

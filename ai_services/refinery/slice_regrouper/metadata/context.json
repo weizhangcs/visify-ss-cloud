@@ -5,8 +5,12 @@
       "dialogue": "剧情类"
     },
     "speaker_unknown": "未确认的角色",
-    "vis_prefix": "  视觉: ",
-    "sub_prefix": "  对白: "
+    "vis_prefix": "  [画面]: ",
+    "sub_prefix": "  [对白]: ",
+    "narrative_label": "  [剧情]: ",
+    "visual_summary_label": "  [运镜]: ",
+    "key_visual_label": "  [画面]: ",
+    "low_quality_label": "  (低质量帧，视觉信息缺失，请基于上下文推理)"
   },
   "en": {
     "type_mapping": {
@@ -14,7 +18,11 @@
       "dialogue": "Dialogue"
     },
     "speaker_unknown": "Unknown Character",
-    "vis_prefix": "  Vis: ",
-    "sub_prefix": "  Sub: "
+    "vis_prefix": "  [Visual]: ",
+    "sub_prefix": "  [Sub]: ",
+    "narrative_label": "  [Narrative]: ",
+    "visual_summary_label": "  [Camera]: ",
+    "key_visual_label": "  [Visual]: ",
+    "low_quality_label": "  (Low quality frames, visual info missing, infer from context)"
   }
 }

@@ -1,6 +1,6 @@
 You are a top-tier film editor and screenplay analyst. Your task is to aggregate a series of chronologically ordered "shot slices" (Slices), rich in multimodal information (text, visuals), into coherent "scenes" (Scenes), and perform an in-depth analysis of each scene.
 
-**Input**: A chronological log of slices. Each slice contains time, location, visual description, and dialogue.
+**Input**: A chronological log of slices. Each slice contains time, type, narrative summary, visual summary, key visual, and dialogue.
 
 **Your Task**:
 1.  **Clustering**: Carefully read all Slices and identify scene boundaries. A significant change in time, location, core event, or characters usually indicates the start of a new scene.
@@ -27,7 +27,29 @@ You are a top-tier film editor and screenplay analyst. Your task is to aggregate
 {% for s in slices %}
 {# 1. Render Slice Header #}
 [Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
-{# 2. Render Visual Content #}
+
+{# Check for valid visual analysis to filter fuzzy frames #}
+{% set visual_check = namespace(has_valid=false) %}
+{% for f in s.visual_contents %}{% if f.visual_analysis %}{% set visual_check.has_valid = true %}{% endif %}{% endfor %}
+
+{% if not visual_check.has_valid %}
+{# Case A: Low quality/Fuzzy frames - Suppress analysis to avoid hallucination #}
+{{ vocab.low_quality_label }}
+{% elif s.slice_analysis %}
+{# Case B: Has Semantic Analysis - Split Narrative/Visual and supplement Key Visual #}
+{{ vocab.narrative_label }}{{ s.slice_analysis.narrative_summary }}
+{{ vocab.visual_summary_label }}{{ s.slice_analysis.visual_summary }}
+{# Strategy Update: Only supplement Key Visuals for non-dialogue slices. Dialogue slices rely on text/summary to reduce noise. #}
+{% if s.type != 'dialogue' %}
+{% for frame in s.visual_contents %}
+{% if frame.visual_analysis %}
+{% set v = frame.visual_analysis %}
+{{ vocab.key_visual_label }}{{ v.environment or 'Unknown' }} | {{ v.subject or '' }} {{ v.action or '' }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+{# Case C: No Analysis - Fallback to raw visuals #}
 {% for frame in s.visual_contents %}
 {% if frame.visual_analysis %}
 {% set v = frame.visual_analysis %}
@@ -36,6 +58,7 @@ You are a top-tier film editor and screenplay analyst. Your task is to aggregate
 {{ vocab.vis_prefix }}{{ v.environment or 'Unknown' }} | {{ shot_type or '' }} | {{ v.subject or '' }} {{ v.action or '' }} | [{{ tags }}]
 {% endif %}
 {% endfor %}
+{% endif %}
 {# 3. Render Dialogue Content #}
 {% for text in s.text_contents %}
 {% set speaker = text.speaker if (text.speaker and text.speaker != 'Unknown') else vocab.speaker_unknown %}

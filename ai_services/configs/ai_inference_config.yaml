@@ -37,7 +37,6 @@ broll_selector_service:
 
 # 字幕合并服务 (SubtitleMerger)
 subtitle_merger:
-  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 200
@@ -53,6 +52,7 @@ visual_analyzer:
 
 # 场景聚类服务 (SliceRegrouper)
 slice_regrouper:
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   max_slices_per_batch: 200
@@ -60,6 +60,7 @@ slice_regrouper:
 
 # 切片语义分析服务 (SliceAnalyzer)
 slice_analyzer:
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 50

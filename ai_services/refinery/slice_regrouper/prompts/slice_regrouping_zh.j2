@@ -1,6 +1,6 @@
 你是一个顶级的电影剪辑师和剧本分析师。你的任务是将一系列按时间顺序排列的、富含多模态信息（文本、视觉）的“镜头切片” (Slices) 聚合成连贯的“场景” (Scenes)，并对每个场景进行深度分析。
 
-**输入**: 一个按时间顺序排列的切片日志。每个切片包含时间、地点、视觉描述和对白。
+**输入**: 一个按时间顺序排列的切片日志。每个切片包含时间、类型、剧情摘要、运镜描述、关键画面和对白。
 
 **你的任务**:
 1.  **聚类 (Clustering)**: 仔细阅读所有 Slices，识别出场景的边界。当时间、地点、核心事件或人物发生显著变化时，通常意味着一个新场景的开始。
@@ -27,7 +27,29 @@
 {% for s in slices %}
 {# 1. 渲染切片头信息 #}
 [Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
-{# 2. 渲染视觉内容 #}
+
+{# 检查是否存在有效的视觉分析数据 (过滤模糊帧) #}
+{% set visual_check = namespace(has_valid=false) %}
+{% for f in s.visual_contents %}{% if f.visual_analysis %}{% set visual_check.has_valid = true %}{% endif %}{% endfor %}
+
+{% if not visual_check.has_valid %}
+{# 情况A: 低质量/模糊帧 - 屏蔽可能产生幻觉的 slice_analysis，仅提示上下文推理 #}
+{{ vocab.low_quality_label }}
+{% elif s.slice_analysis %}
+{# 情况B: 有语义分析 - 拆分展示剧情与运镜，并补全关键画面 #}
+{{ vocab.narrative_label }}{{ s.slice_analysis.narrative_summary }}
+{{ vocab.visual_summary_label }}{{ s.slice_analysis.visual_summary }}
+{# 策略调整: 仅非剧情类(主要是视觉类)切片补全关键画面。剧情类切片依靠对白和总结即可，避免画面噪音 #}
+{% if s.type != 'dialogue' %}
+{% for frame in s.visual_contents %}
+{% if frame.visual_analysis %}
+{% set v = frame.visual_analysis %}
+{{ vocab.key_visual_label }}{{ v.environment or 'Unknown' }} | {{ v.subject or '' }} {{ v.action or '' }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+{# 情况C: 无语义分析 - 回退到原始视觉描述 #}
 {% for frame in s.visual_contents %}
 {% if frame.visual_analysis %}
 {% set v = frame.visual_analysis %}
@@ -36,6 +58,7 @@
 {{ vocab.vis_prefix }}{{ v.environment or 'Unknown' }} | {{ shot_type or '' }} | {{ v.subject or '' }} {{ v.action or '' }} | [{{ tags }}]
 {% endif %}
 {% endfor %}
+{% endif %}
 {# 3. 渲染对白内容 #}
 {% for text in s.text_contents %}
 {% set speaker = text.speaker if (text.speaker and text.speaker != 'Unknown') else vocab.speaker_unknown %}
