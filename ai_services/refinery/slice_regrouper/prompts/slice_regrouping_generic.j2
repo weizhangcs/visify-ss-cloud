@@ -26,7 +26,7 @@ You are a top-tier film editor and screenplay analyst. Your task is to aggregate
 
 {% for s in slices %}
 {# 1. Render Slice Header #}
-[Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
+[Slice {{ s.index }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
 
 {# Check for valid visual analysis to filter fuzzy frames #}
 {% set visual_check = namespace(has_valid=false) %}

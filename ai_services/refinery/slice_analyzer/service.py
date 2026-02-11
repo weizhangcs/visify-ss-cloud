@@ -144,10 +144,13 @@ class SliceAnalyzerService(AIServiceMixin):
                         raise e
                     time.sleep(2 * (attempt + 1))
 
+            # 建立 Index -> UUID 映射
+            slice_map = {s.index: s.id for s in chunk}
+
             # 3.3 转换结果
             for res in batch_results:
                 all_analyzed_slices.append(AnalyzedSlice(
-                    slice_id=res.slice_id,
+                    id=slice_map.get(res.slice_id, "unknown_uuid"),  # [Change] Map index back to UUID
                     slice_analysis=res.analysis
                 ))
 

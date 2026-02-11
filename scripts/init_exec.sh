@@ -48,8 +48,11 @@ esac
 
 PROJECT_NAME="vss-cloud"
 COMPOSE_FLAGS="-p $PROJECT_NAME -f $BASE_COMPOSE_FILE -f $OVERRIDE_COMPOSE_FILE"
-DB_USER="vss_cloud_user"
-DB_NAME="vss_cloud_db"
+# [Fix] 从 .env 读取数据库配置，避免硬编码导致检测失败
+DB_USER=$(grep "^POSTGRES_USER=" "$ENV_FILE" | cut -d '=' -f 2 | tr -d "'" | tr -d '"' | tr -d '\r')
+DB_NAME=$(grep "^POSTGRES_DB=" "$ENV_FILE" | cut -d '=' -f 2 | tr -d "'" | tr -d '"' | tr -d '\r')
+: "${DB_USER:=vss_cloud_user}" # 默认值兜底
+: "${DB_NAME:=vss_cloud_db}"
 # 读取 SERVER_DOMAIN 用于最终访问信息输出
 INPUT_DOMAIN=$(grep "^SERVER_DOMAIN=" "$ENV_FILE" | cut -d '=' -f 2 | tr -d "'") # 移除可能的单引号
 
@@ -170,7 +173,8 @@ while ! docker exec "$DB_CONTAINER_ID" pg_isready -U "$DB_USER" -d "$DB_NAME" > 
     fi
 
     # 尝试重新启动 db 服务，以防中间状态失败 (幂等操作)
-    if [ $(($COUNT % 5)) -eq 0 ]; then
+    # [Fix] 放宽重启间隔，避免打断数据库初始化 (每 15 次 / 30秒 重启一次)
+    if [ $(($COUNT % 15)) -eq 0 ]; then
         echo "   ⚠️  数据库长时间未就绪，尝试重启 db 服务..."
         docker compose $COMPOSE_FLAGS up -d db || true
         DB_CONTAINER_ID=$(docker compose $COMPOSE_FLAGS ps -q db) # 重新获取 ID

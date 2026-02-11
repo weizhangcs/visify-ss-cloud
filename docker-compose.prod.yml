@@ -27,27 +27,27 @@ services:
     restart: always
 
   # --- Workers (生产级流控) ---
-  worker_gemini:
+  worker-gemini:
     image: ghcr.io/weizhangcs/vss-cloud:latest
     restart: always
     # [流控] 并发 2: 保护 Google API 配额
-    command: celery -A core worker -Q queue_gemini -c 2 -l info
+    command: celery -A core worker -Q queue-gemini -c 2 -l info
     volumes:
       - ./prod_data/shared_media:/app/shared_media
 
-  worker_audio:
+  worker-audio:
     image: ghcr.io/weizhangcs/vss-cloud:latest
     restart: always
     # [流控] 并发 4: 平衡 CPU 计算负载
-    command: celery -A core worker -Q queue_audio -c 4 -l info
+    command: celery -A core worker -Q queue-audio -c 4 -l info
     volumes:
       - ./prod_data/shared_media:/app/shared_media
 
-  worker_io:
+  worker-io:
     image: ghcr.io/weizhangcs/vss-cloud:latest
     restart: always
     # [流控] 并发 8: 最大化 IO 吞吐
-    command: celery -A core worker -Q queue_io,celery -c 8 -l info
+    command: celery -A core worker -Q queue-io,celery -c 8 -l info
     volumes:
       - ./prod_data/shared_media:/app/shared_media
 

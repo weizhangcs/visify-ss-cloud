@@ -9,7 +9,7 @@ For each slice, synthesize the visual information (frames) and auditory informat
 ## Input Data
 {% for s in slices %}
 ---
-[Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s
+[Slice {{ s.index }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s
 {{ vocab.visuals_header }}
 {% for frame in s.visual_contents %}
 {% if frame.visual_analysis %}

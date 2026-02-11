@@ -119,20 +119,24 @@ class SliceRegrouperService(AIServiceMixin):
         
         # --- 4. 后处理：计算时间轴并构建最终 Scene 对象 ---
         final_scenes = []
-        slice_map = {s.slice_id: s for s in slices}
+        # [Change] 使用 index 作为查找键 (LLM 返回的是 index)
+        slice_map = {s.index: s for s in slices}
         global_scene_id = 1
-        
+
         label_map = SCENE_TYPE_LABELS.get(task_input.lang, SCENE_TYPE_LABELS.get('en', {}))
 
         for ls in all_llm_scenes:
             # 验证 slice_ids 有效性
-            valid_ids = [sid for sid in ls.slice_ids if sid in slice_map]
-            if not valid_ids:
+            valid_indices = [sid for sid in ls.slice_ids if sid in slice_map]
+            if not valid_indices:
                 continue
-            
+
             # 计算时间范围
-            start_time = min(slice_map[sid].start_time for sid in valid_ids)
-            end_time = max(slice_map[sid].end_time for sid in valid_ids)
+            start_time = min(slice_map[sid].start_time for sid in valid_indices)
+            end_time = max(slice_map[sid].end_time for sid in valid_indices)
+
+            # [Change] 转换 Index 为 UUID
+            valid_uuids = [slice_map[sid].id for sid in valid_indices]
 
             # [核心变更] 转换 SceneType Enum 为 LabelItem
             llm_content = ls.content
@@ -158,7 +162,7 @@ class SliceRegrouperService(AIServiceMixin):
                 start_time=start_time,
                 end_time=end_time,
                 content=public_content,
-                slice_ids=valid_ids
+                slice_ids=valid_uuids
             ))
             global_scene_id += 1
 

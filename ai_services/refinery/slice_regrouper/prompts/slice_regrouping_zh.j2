@@ -26,7 +26,7 @@
 
 {% for s in slices %}
 {# 1. 渲染切片头信息 #}
-[Slice {{ s.slice_id }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
+[Slice {{ s.index }}] {{ "%.1f"|format(s.start_time) }}-{{ "%.1f"|format(s.end_time) }}s [Type: {{ vocab.type_mapping.get(s.type, s.type) }}]
 
 {# 检查是否存在有效的视觉分析数据 (过滤模糊帧) #}
 {% set visual_check = namespace(has_valid=false) %}

@@ -13,6 +13,9 @@ services:
     image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_base/postgres:16-alpine
     ports:
       - "5432:5432"
+    # [Fix] 物理挂载时，为了避免根目录非空导致 initdb 失败，指定子目录存储数据
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
 
   redis:
     image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_base/redis:7-alpine
@@ -21,7 +24,8 @@ services:
 
   # --- 应用服务 (仿真运行) ---
   web:
-    image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.3.0-alpha.temp
+    image: 10.168.1.23:4999/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
+    #image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
     expose:
       - 8000
@@ -31,24 +35,27 @@ services:
     restart: unless-stopped
 
   # --- Workers (生产级并发) ---
-  worker_gemini:
-    image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.3.0-alpha.temp
+  worker-gemini:
+    image: 10.168.1.23:4999/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
+    #image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
     restart: unless-stopped
-    command: celery -A core worker -Q queue_gemini -c 2 -l info
+    command: celery -A core worker -Q queue-gemini -c 2 -l info
     volumes:
       - ./test_data/shared_media:/app/shared_media
 
-  worker_audio:
-    image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.3.0-alpha.temp
+  worker-audio:
+    image: 10.168.1.23:4999/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
+    #image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
     restart: unless-stopped
-    command: celery -A core worker -Q queue_audio -c 4 -l info
+    command: celery -A core worker -Q queue-audio -c 4 -l info
     volumes:
       - ./test_data/shared_media:/app/shared_media
 
-  worker_io:
-    image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.3.0-alpha.temp
+  worker-io:
+    image: 10.168.1.23:4999/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
+    #image: crpi-34v4qt829vtet2cy.cn-hangzhou.personal.cr.aliyuncs.com/vss_cloud/cloud:v1.4.0-alpha.2.hotfix
     restart: unless-stopped
-    command: celery -A core worker -Q queue_io,celery -c 8 -l info
+    command: celery -A core worker -Q queue-io,celery -c 8 -l info
     volumes:
       - ./test_data/shared_media:/app/shared_media
 

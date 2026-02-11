@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class SubtitleItem(BaseModel):
     index: int = Field(..., description="Original subtitle index")
+    id: Optional[str] = Field(None, description="UUID for tracking the subtitle line")
     start_time: float = Field(..., description="Start time in seconds")
     end_time: float = Field(..., description="End time in seconds")
     content: str = Field(..., description="Subtitle text content")
@@ -35,6 +36,7 @@ class SubtitleMergerPayload(BaseModel):
         return self
 
 class MergedSubtitleItem(BaseModel):
+    id: Optional[str] = Field(None, description="UUID for the merged subtitle line")
     index: int
     start_time: float
     end_time: float

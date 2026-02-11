@@ -2,7 +2,7 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 
 from pydantic import ValidationError
 
@@ -100,8 +100,25 @@ class NarrationGenerator(BaseRagGenerator):
         """Step 5: 组装 Prompt"""
         return self._assemble_prompt_string(context, config)
 
-    def _post_process(self, llm_response: Dict, config: NarrationServiceConfig, usage: Dict, **kwargs) -> Dict:
+    def _post_process(self, llm_response: Union[Dict, str], config: NarrationServiceConfig, usage: Dict, **kwargs) -> Dict:
         """Step 7: 后处理"""
+        
+        # [Fix] Parse JSON if input is string (Robustness for raw LLM output)
+        if isinstance(llm_response, str):
+            try:
+                # Clean markdown code blocks if present (e.g. ```json ... ```)
+                cleaned = llm_response.strip()
+                if cleaned.startswith("```"):
+                    lines = cleaned.split('\n')
+                    # Remove first line (```json) and last line (```) if valid block
+                    if len(lines) >= 2:
+                        cleaned = '\n'.join(lines[1:-1])
+                
+                llm_response = json.loads(cleaned)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Failed to parse LLM response: {llm_response}")
+                raise ValueError(f"Invalid JSON response from LLM: {e}")
+
         dataset = config.narrative_dataset
         lang = config.lang
 
@@ -174,7 +191,7 @@ class NarrationGenerator(BaseRagGenerator):
             source_corpus=kwargs.get('corpus_display_name', 'mock-corpus'),
             rag_context_snapshot=kwargs.get('rag_context', ''),
             narration_script=script_objects,
-            ai_total_usage=usage
+            ai_total_usage=usage.model_dump() if hasattr(usage, 'model_dump') else usage
         )
         return result.model_dump()
 

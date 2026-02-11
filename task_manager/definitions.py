@@ -20,10 +20,15 @@ class TaskType(models.TextChoices):
     REFINERY_VISUAL_ANALYZER = 'REFINERY_VISUAL_ANALYZER', _('[Refinery] Visual Analyzer')
     REFINERY_SLICE_REGROUPER = 'REFINERY_SLICE_REGROUPER', _('[Refinery] Slice Regrouper')
     REFINERY_SLICE_ANALYZER = 'REFINERY_SLICE_ANALYZER', _('[Refinery] Slice Analyzer')
+    REFINERY_DUBBING_SCRIPT_REFINER = 'REFINERY_DUBBING_SCRIPT_REFINER', _('[Refinery] Dubbing Script Refiner')
+    
+    # === Creative 原子服务 ===
+    CREATIVE_ASSET_SELECTOR = 'CREATIVE_ASSET_SELECTOR', _('[Creative] Asset Selector')
+    CREATIVE_EDITING_DIRECTOR = 'CREATIVE_EDITING_DIRECTOR', _('[Creative] Editing Director')
 
 @dataclass
 class TaskConfig:
-    queue: str = 'queue_gemini'  # 默认队列
+    queue: str = 'queue-gemini'  # 默认队列
     output_prefix: str = None    # 输出文件前缀 (None 表示不自动生成)
 
 # 任务配置注册表 (Single Source of Truth)
@@ -43,12 +48,17 @@ TASK_CONFIGS = {
     TaskType.REFINERY_VISUAL_ANALYZER: TaskConfig(),
     TaskType.REFINERY_SLICE_REGROUPER: TaskConfig(),
     TaskType.REFINERY_SLICE_ANALYZER: TaskConfig(),
+    TaskType.REFINERY_DUBBING_SCRIPT_REFINER: TaskConfig(), # 默认使用 queue-gemini
+    
+    # Creative
+    TaskType.CREATIVE_ASSET_SELECTOR: TaskConfig(),
+    TaskType.CREATIVE_EDITING_DIRECTOR: TaskConfig(),
     
     # 旧版服务 (部分无 output_prefix)
 
     # B类: 音频密集型
-    TaskType.GENERATE_DUBBING: TaskConfig(queue='queue_audio', output_prefix="dubbing_script"),
+    TaskType.GENERATE_DUBBING: TaskConfig(queue='queue-audio', output_prefix="dubbing_script"),
 
     # C类: IO 密集型
-    TaskType.DEPLOY_RAG_CORPUS: TaskConfig(queue='queue_io', output_prefix="rag_deployment_report"),
+    TaskType.DEPLOY_RAG_CORPUS: TaskConfig(queue='queue-io', output_prefix="rag_deployment_report"),
 }

@@ -9,6 +9,7 @@
 # 人物事实识别服务 (CharacterIdentifier)
 character_identifier:
   # FIX: 最终修正为最稳定的、无后缀的 Canonical ID，以最大限度解决 404 错误。
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 150
@@ -37,6 +38,7 @@ broll_selector_service:
 
 # 字幕合并服务 (SubtitleMerger)
 subtitle_merger:
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 200
@@ -44,6 +46,7 @@ subtitle_merger:
 
 # 视觉分析服务 (VisualAnalyzer)
 visual_analyzer:
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   batch_size: 20
@@ -65,3 +68,27 @@ slice_analyzer:
   temperature: 0.1
   batch_size: 50
   max_retries: 3
+
+# 素材选择服务 (AssetSelector)
+asset_selector:
+  mode: "DEBUG"
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+
+editing_director:
+  mode: "DEBUG"
+  generation_threshold: 0.3
+
+# 剧本精修服务 (DubbingScriptRefiner)
+dubbing_script_refiner:
+  mode: "PROD"
+  default_model: "gemini-2.5-flash"
+  temperature: 0.1
+  max_retries: 3
+  # --- 策略参数 ---
+  # 滑动窗口分片 (Sliding Window)
+  chunk_duration_seconds: 120 # 每 2 分钟一个数据块
+  chunk_overlap_seconds: 10   # 块之间重叠 10 秒，确保台词连续性
+  # 时序对齐 (Temporal Alignment)
+  alignment_tolerance_seconds: 1.0 # ASR 与 OCR 时间戳对齐的容差 (±1s)
+  similarity_threshold: 0.2 # [Fix] ASR与OCR内容相似度阈值，低于此值则不视为匹配

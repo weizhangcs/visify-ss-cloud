@@ -41,6 +41,7 @@
 ```json
 {
   "index": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "start_time": 10.5,
   "end_time": 12.0,
   "content": "原始字幕文本"
@@ -92,6 +93,7 @@
   "merged_subtitles": [
     {
       "index": 1,
+      "id": "new-uuid-generated-by-cloud",
       "start_time": 10.5,
       "end_time": 15.2,
       "content": "这是合并后的完整句子，标点符号已修正。",
@@ -136,8 +138,8 @@
       "temperature": 0.3
     },
     "subtitles": [
-      { "index": 1, "start_time": 0.0, "end_time": 1.5, "content": "Hello world" },
-      { "index": 2, "start_time": 1.6, "end_time": 3.0, "content": "this is a test." }
+      { "index": 1, "id": "uuid-1", "start_time": 0.0, "end_time": 1.5, "content": "Hello world" },
+      { "index": 2, "id": "uuid-2", "start_time": 1.6, "end_time": 3.0, "content": "this is a test." }
     ]
   }
 }

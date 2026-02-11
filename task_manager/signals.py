@@ -11,7 +11,6 @@ QUEUE_ROUTING = {
     task_type: config.queue for task_type, config in TASK_CONFIGS.items()
 }
 
-
 @receiver(post_save, sender=Task)
 def trigger_task_execution(sender, instance, created, **kwargs):
     """

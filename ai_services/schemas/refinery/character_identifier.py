@@ -8,6 +8,7 @@ class AudioAnalysis(BaseModel):
 
 class SubtitleItem(BaseModel):
     index: int = Field(..., description="Original subtitle index")
+    id: Optional[str] = Field(None, description="UUID for tracking the subtitle line")
     start_time: float = Field(..., description="Start time in seconds")
     end_time: float = Field(..., description="End time in seconds")
     content: str = Field(..., description="Subtitle text content")
@@ -18,6 +19,7 @@ class CharacterIdentifierServiceParams(BaseModel):
     """Technical parameters for DEBUG mode"""
     model: Optional[str] = Field(None, description="LLM model name")
     batch_size: Optional[int] = Field(None, description="Batch size for processing")
+    normalization_batch_size: Optional[int] = Field(None, description="Batch size for normalization stage")
     temperature: Optional[float] = Field(None, description="Temperature for LLM")
     max_retries: Optional[int] = Field(None, description="Max retries for LLM calls")
 
@@ -43,12 +45,13 @@ class CharacterIdentifierPayload(BaseModel):
 
         if self.mode == "PROD":
             sp = self.service_params
-            if sp and (sp.model or sp.batch_size or sp.temperature or sp.max_retries):
+            if sp and (sp.model or sp.batch_size or sp.normalization_batch_size or sp.temperature or sp.max_retries):
                 raise ValueError("In PROD mode, technical parameters are not allowed in payload.")
         return self
 
 class IdentifiedSubtitleItem(BaseModel):
     """识别结果项"""
+    id: Optional[str] = Field(None, description="UUID of the subtitle line")
     index: int
     speaker: str
     reasoning: Optional[str] = None

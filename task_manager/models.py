@@ -41,7 +41,7 @@ class Task(TimeStampedModel):
     )
     task_type = models.CharField(  # 【关键修改：改为 models.CharField】
         choices=TaskType.choices,  # 使用原生的 choices 属性
-        max_length=64,  # [优化] 从 30 扩展到 64，防止 REFINERY_CHARACTER_IDENTIFIER (29 chars) 等长命名溢出
+        max_length=64,
         verbose_name=_("Task Type"),
         db_index=True   # [优化] 增加索引，加速按任务类型统计
     )

@@ -41,7 +41,8 @@
 #### MultimodalSlice (切片对象)
 ```json
 {
-  "slice_id": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "index": 1,
   "start_time": 0.0,
   "end_time": 4.5,
   "type": "visual_segment", // 或 "dialogue"
@@ -107,7 +108,7 @@
       "scene_id": 1,
       "start_time": 0.0,
       "end_time": 15.5,
-      "slice_ids": [1, 2, 3],
+      "slice_ids": ["uuid-1", "uuid-2", "uuid-3"],
       "content": {
         "narrative_action": "Alice和Bob在咖啡馆见面并寒暄。",
         "location": "城市咖啡馆",
@@ -159,7 +160,8 @@
     },
     "slices": [
       {
-        "slice_id": 1,
+        "id": "uuid-1",
+        "index": 1,
         "start_time": 0.0,
         "end_time": 5.0,
         "type": "visual_segment",

@@ -12,6 +12,7 @@ class AudioAnalysis(BaseModel):
 
 class SubtitleItem(BaseModel):
     index: int
+    id: Optional[str] = None
     content: str
     start_time: float
     end_time: float
@@ -46,7 +47,8 @@ class MultimodalSlice(BaseModel):
     """
     [核心容器] 多模态切片。
     """
-    slice_id: int
+    id: str = Field(..., description="Slice UUID")
+    index: int = Field(..., description="Global sort order (0-based)")
     start_time: float
     end_time: float
     type: str
@@ -140,7 +142,7 @@ class Scene(BaseModel):
     start_time: float
     end_time: float
     content: SceneContent
-    slice_ids: List[int]
+    slice_ids: List[str] = Field(..., description="List of Slice UUIDs")
 
 class SliceRegrouperResponse(BaseModel):
     scenes: List[Scene]

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import time
 from typing import Dict, Any, List
+import uuid
 
 from django.conf import settings
 from pydantic import BaseModel
@@ -126,6 +127,7 @@ class SubtitleMergerService(AIServiceMixin):
                 items_to_merge.sort(key=lambda x: x.index)
 
                 merged_item = MergedSubtitleItem(
+                    id=str(uuid.uuid4()), # [Change] Generate new UUID for merged item
                     index=0, # 临时索引，稍后将全局重新分配
                     start_time=items_to_merge[0].start_time,
                     end_time=items_to_merge[-1].end_time,
@@ -139,6 +141,7 @@ class SubtitleMergerService(AIServiceMixin):
             for sub in chunk:
                 if sub.index not in processed_indices:
                     all_merged_subtitles.append(MergedSubtitleItem(
+                        id=sub.id, # [Change] Preserve original UUID if not merged
                         index=0, # 临时索引
                         start_time=sub.start_time,
                         end_time=sub.end_time,

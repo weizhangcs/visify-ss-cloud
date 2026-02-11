@@ -47,6 +47,7 @@
 ```json
 {
   "index": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "start_time": 10.5,
   "end_time": 12.0,
   "content": "你好，请问王经理在吗？",
@@ -107,11 +108,13 @@
   "identified_subtitles": [
     {
       "index": 1,
+      "id": "uuid-1",
       "speaker": "J. Daniel Atlas",
       "reasoning": "AI Inferred"
     },
     {
       "index": 2,
+      "id": "uuid-2",
       "speaker": "Dylan Rhodes",
       "reasoning": "AI Inferred"
     }
@@ -157,6 +160,7 @@
     "subtitles": [
       {
         "index": 1,
+        "id": "uuid-1",
         "start_time": 0.5,
         "end_time": 2.0,
         "content": "小李啊，你来一下我的办公室。",

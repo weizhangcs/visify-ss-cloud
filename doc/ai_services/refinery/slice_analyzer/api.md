@@ -41,7 +41,8 @@
 #### MultimodalSlice (切片对象)
 ```json
 {
-  "slice_id": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "index": 1,
   "start_time": 0.0,
   "end_time": 3.5,
   "type": "visual_segment",
@@ -96,7 +97,7 @@
 {
   "analyzed_slices": [
     {
-      "slice_id": 1,
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "slice_analysis": {
         "narrative_summary": "侦探在昏暗的审讯室里猛拍桌子，营造出紧张的氛围。",
         "visual_summary": "画面呈现昏暗的审讯室，特写侦探猛拍桌子的手，整体视觉风格紧张压抑。",

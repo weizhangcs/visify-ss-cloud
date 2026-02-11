@@ -49,8 +49,8 @@ services:
   # 说明: 拆分为三组以实现不同维度的流控与隔离
 
   # 1. Gemini 专用 (配额敏感/低并发)
-  worker_gemini:
-    command: celery -A core.celery worker -Q queue_gemini -l info
+  worker-gemini:
+    command: celery -A core.celery worker -Q queue-gemini -l info
     depends_on:
       - db
       - redis
@@ -64,8 +64,8 @@ services:
       - ./conf/gcp-credentials.json:/app/conf/gcp-credentials.json:ro
 
   # 2. 音频处理 (计算密集/中并发)
-  worker_audio:
-    command: celery -A core.celery worker -Q queue_audio -l info
+  worker-audio:
+    command: celery -A core.celery worker -Q queue-audio -l info
     depends_on:
       - db
       - redis
@@ -79,8 +79,8 @@ services:
       - ./conf/gcp-credentials.json:/app/conf/gcp-credentials.json:ro
 
   # 3. 通用/IO (高并发/兜底)
-  worker_io:
-    command: celery -A core.celery worker -Q queue_io,celery -l info
+  worker-io:
+    command: celery -A core.celery worker -Q queue-io,celery -l info
     depends_on:
       - db
       - redis

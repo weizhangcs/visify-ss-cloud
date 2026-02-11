@@ -40,6 +40,7 @@ class CharacterIdentifierService(AIServiceMixin):
     # 默认配置
     DEFAULT_MODEL = "gemini-2.5-flash"
     DEFAULT_BATCH_SIZE = 150
+    DEFAULT_NORM_BATCH_SIZE = 250
     DEFAULT_TEMP = 0.1
     DEFAULT_MAX_RETRIES = 3
 
@@ -72,6 +73,7 @@ class CharacterIdentifierService(AIServiceMixin):
         if config is None: config = {}
         model_name = config.get("default_model", self.DEFAULT_MODEL)
         batch_size = config.get("batch_size", self.DEFAULT_BATCH_SIZE)
+        norm_batch_size = config.get("normalization_batch_size", self.DEFAULT_NORM_BATCH_SIZE)
         temperature = config.get("temperature", self.DEFAULT_TEMP)
         max_retries = config.get("max_retries", self.DEFAULT_MAX_RETRIES)
 
@@ -80,9 +82,10 @@ class CharacterIdentifierService(AIServiceMixin):
             sp = task_input.service_params
             if sp.model: model_name = sp.model
             if sp.batch_size: batch_size = sp.batch_size
+            if sp.normalization_batch_size: norm_batch_size = sp.normalization_batch_size
             if sp.temperature is not None: temperature = sp.temperature
             if sp.max_retries: max_retries = sp.max_retries
-            self.logger.info(f"🔧 DEBUG Mode. Params: Model={model_name}, Batch={batch_size}")
+            self.logger.info(f"🔧 DEBUG Mode. Params: Model={model_name}, Batch={batch_size}, NormBatch={norm_batch_size}")
         else:
             self.logger.info(f"🏭 PROD Mode. Params: Model={model_name}, Batch={batch_size}")
 
@@ -136,6 +139,7 @@ class CharacterIdentifierService(AIServiceMixin):
 
                 for item in batch_items:
                     inference_results.append(IdentifiedSubtitleItem(
+                        id=item.id, # [Change] Pass through UUID
                         index=item.index,
                         speaker=speaker_map.get(item.index, "Unknown"),
                         reasoning="AI Inferred"
@@ -145,6 +149,7 @@ class CharacterIdentifierService(AIServiceMixin):
                 # 错误处理：填充 Unknown
                 for item in batch_items:
                     inference_results.append(IdentifiedSubtitleItem(
+                        id=item.id,
                         index=item.index,
                         speaker="Unknown (Error)",
                         reasoning=f"Error: {str(e)[:50]}"
@@ -154,54 +159,67 @@ class CharacterIdentifierService(AIServiceMixin):
         raw_speakers = list(set([res.speaker for res in inference_results if res.speaker not in ["Unknown", "Unknown (Error)"]]))
 
         if len(raw_speakers) >= 2:
-            self.logger.info(f"Normalizing {len(raw_speakers)} unique speaker names...")
+            self.logger.info(f"Normalizing {len(raw_speakers)} unique speaker names (Batch Size: {norm_batch_size})...")
+            
+            # 全量预推理角色列表 (作为全局上下文)
+            raw_speakers_str = ", ".join(raw_speakers)
 
             # [优化] 动态加载归一化模板
             norm_template = f"speaker_normalization_{task_input.lang}.j2"
             if not (self.prompts_dir / norm_template).exists():
                 norm_template = "speaker_normalization_generic.j2"
 
-            # [核心重构] 构建带有初步角色标注的完整剧本上下文 (Recursive Refinement)
-            # 格式: [Index] [Gender] [Draft Speaker] Content
-            script_lines = []
             # 建立索引映射以快速查找 Stage 1 的结果
             inf_map = {item.index: item for item in inference_results}
 
-            for sub in subtitles:
-                inf_item = inf_map.get(sub.index)
-                speaker = inf_item.speaker if inf_item else "Unknown"
+            # 分批进行归一化
+            norm_num_batches = math.ceil(total_lines / norm_batch_size)
+            
+            for i in range(norm_num_batches):
+                start_idx = i * norm_batch_size
+                end_idx = min((i + 1) * norm_batch_size, total_lines)
+                batch_subtitles = subtitles[start_idx:end_idx]
+                
+                # 构建当前批次的剧本上下文
+                script_lines = []
+                for sub in batch_subtitles:
+                    inf_item = inf_map.get(sub.index)
+                    speaker = inf_item.speaker if inf_item else "Unknown"
 
-                gender_tag = ""
-                if sub.audio_analysis and sub.audio_analysis.gender != "Unknown":
-                    gender_tag = f"[Gender: {sub.audio_analysis.gender}] "
+                    gender_tag = ""
+                    if sub.audio_analysis and sub.audio_analysis.gender != "Unknown":
+                        gender_tag = f"[Gender: {sub.audio_analysis.gender}] "
 
-                script_lines.append(f"[{sub.index}] {gender_tag}[{speaker}] {sub.content}")
+                    script_lines.append(f"[{sub.index}] {gender_tag}[{speaker}] {sub.content}")
+                
+                batch_script_context = "\n".join(script_lines)
 
-            full_script_context = "\n".join(script_lines)
+                norm_prompt = self.prompt_manager.render(norm_template, {
+                    "script_content": batch_script_context,
+                    "language_name": language_name,
+                    "character_list": chars_str,  # VIP 列表
+                    "raw_speakers": raw_speakers_str # [新增] 全量预推理角色列表，提供全局视野
+                })
 
-            norm_prompt = self.prompt_manager.render(norm_template, {
-                "script_content": full_script_context,
-                "language_name": language_name,
-                "character_list": chars_str  # 仍保留 VIP 列表作为参考标准
-            })
+                try:
+                    norm_response, norm_usage = self.gemini_processor.generate_content(
+                        model_name=model_name,
+                        prompt=norm_prompt,
+                        response_schema=SpeakerNormalizationResponse,
+                        temperature=temperature
+                    )
+                    self._aggregate_usage(usage_accumulator, norm_usage)
 
-            try:
-                norm_response, norm_usage = self.gemini_processor.generate_content(
-                    model_name=model_name,
-                    prompt=norm_prompt,
-                    response_schema=SpeakerNormalizationResponse,
-                    temperature=temperature
-                )
-                self._aggregate_usage(usage_accumulator, norm_usage)
+                    norm_map = {item.original_name: item.normalized_name for item in norm_response.normalization_items}
 
-                norm_map = {item.original_name: item.normalized_name for item in norm_response.normalization_items}
-
-                # 应用归一化
-                for res in inference_results:
-                    if res.speaker in norm_map:
-                        res.speaker = norm_map[res.speaker]
-            except Exception as e:
-                self.logger.error(f"Normalization failed: {e}")
+                    # 应用归一化 (仅针对当前批次的结果)
+                    for sub in batch_subtitles:
+                        inf_item = inf_map.get(sub.index)
+                        if inf_item and inf_item.speaker in norm_map:
+                            inf_item.speaker = norm_map[inf_item.speaker]
+                            
+                except Exception as e:
+                    self.logger.error(f"Normalization batch {i+1} failed: {e}")
 
         # 收集最终的角色列表 (用于 Stats)
         # 过滤掉 Unknown 和 Error，并进行排序
