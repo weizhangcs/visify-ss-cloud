@@ -44,7 +44,7 @@ class TaskAdmin(ModelAdmin):
                 ("status", "assigned_edge"),
             )
         }),
-        (_("Performance & Timing"), {  # [新增] 性能统计区域
+        (_("Performance & Timing"), {
             "fields": (
                 ("created", "started_at"),
                 ("finished_at", "duration"),
@@ -56,15 +56,16 @@ class TaskAdmin(ModelAdmin):
             "fields": (
                 "payload_pretty",
                 "result_pretty",
+                "error_pretty",
                 "logs"
             )
         }),
     )
 
-    # [新增] 将新字段加入只读列表
     readonly_fields = (
         'payload_pretty',
         'result_pretty',
+        'error_pretty',
         'created',
         'modified',
         'logs',
@@ -87,7 +88,6 @@ class TaskAdmin(ModelAdmin):
 
     @display(description=_("Status"), label={
         Task.TaskStatus.PENDING: "info",
-        # [修改] 移除 ASSIGNED 映射
         Task.TaskStatus.RUNNING: "warning",
         Task.TaskStatus.COMPLETED: "success",
         Task.TaskStatus.FAILED: "danger",
@@ -101,13 +101,11 @@ class TaskAdmin(ModelAdmin):
 
     @display(description=_("Created"))
     def created_at_formatted(self, obj):
-        # [修复] 先转为本地时间 (Shanghai)，再格式化
         local_dt = timezone.localtime(obj.created)
         return local_dt.strftime("%Y-%m-%d %H:%M")
 
     @display(description=_("Modified"))
     def modified_at_formatted(self, obj):
-        # [修复] 先转为本地时间 (Shanghai)，再格式化
         local_dt = timezone.localtime(obj.modified)
         return local_dt.strftime("%Y-%m-%d %H:%M")
 
@@ -126,8 +124,8 @@ class TaskAdmin(ModelAdmin):
         if not obj.result:
             return "-"
         json_str = json.dumps(obj.result, indent=2, ensure_ascii=False)
-        bg_color = "#fff5f5" if obj.status == Task.TaskStatus.FAILED else "#f0fdf4"
-        border_color = "#fed7d7" if obj.status == Task.TaskStatus.FAILED else "#c6f6d5"
+        bg_color = "#f0fdf4" # 默认为成功色
+        border_color = "#c6f6d5"
 
         return format_html(
             '<pre class="w-full" style="background-color: {}; padding: 15px; border-radius: 5px; font-size: 12px; line-height: 1.5; overflow-x: auto; border: 1px solid {};">{}</pre>',
@@ -135,3 +133,14 @@ class TaskAdmin(ModelAdmin):
         )
 
     result_pretty.short_description = _("Result")
+
+    def error_pretty(self, obj):
+        if not obj.error:
+            return "-"
+        json_str = json.dumps(obj.error, indent=2, ensure_ascii=False)
+        return format_html(
+            '<pre class="w-full" style="background-color: #fff5f5; padding: 15px; border-radius: 5px; font-size: 12px; line-height: 1.5; overflow-x: auto; border: 1px solid #fed7d7;">{}</pre>',
+            json_str
+        )
+    
+    error_pretty.short_description = _("Error Details")

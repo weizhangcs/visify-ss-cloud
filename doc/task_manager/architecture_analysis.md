@@ -1,7 +1,7 @@
 # Task Manager 架构深度分析
 
-> **版本**: v1.0
-> **生成日期**: 2026-01-09
+> **版本**: v1.1
+> **生成日期**: 2026-02-24
 
 ## 1. 模块定位
 `task_manager` 是 VSS Cloud 的核心调度中枢，负责所有异步任务的生命周期管理。它连接了上层 API 接口与底层具体的 AI 业务逻辑，实现了请求接收、任务持久化、异步分发、执行路由、状态流转以及结果落盘的完整闭环。
@@ -30,6 +30,7 @@ graph TD
     *   `fail()`: 标记失败，记录错误信息。
 *   **多租户隔离**: 通过 `organization` 和 `assigned_edge` 字段实现资源归属划分。
 *   **类型定义**: `TaskType` 枚举定义了系统支持的所有原子能力。
+*   **错误处理**: 新增 `error` 字段 (JSONField)，用于存储结构化的错误信息 (code, message, details)。
 
 ### 3.2 接口层 (API)
 *   **技术栈**: Django Ninja
@@ -43,6 +44,7 @@ graph TD
 *   **触发机制**: 利用 Django `post_save` 信号监听 `Task` 创建。
 *   **事务安全**: 使用 `transaction.on_commit` 确保数据库事务提交后再发送 Celery 消息，防止 Worker 读不到数据。
 *   **智能路由 (`QUEUE_ROUTING`)**:
+    *   基于 `definitions.py` 中的 `TASK_CONFIGS` 自动生成路由表。
     *   根据 `TaskType` 将任务分发到不同的物理队列（如 `queue_gemini` 用于限流的 AI 任务，`queue_io` 用于高并发 IO 任务）。
     *   实现了不同类型任务的资源隔离和流控。
 
@@ -50,7 +52,7 @@ graph TD
 *   **入口**: `execute_cloud_native_task`
 *   **并发控制**: 使用 `select_for_update()` 锁定任务行，防止分布式环境下的竞态条件。
 *   **幂等性**: 执行前检查任务状态，避免重复执行。
-*   **错误处理**: 捕获异常并自动更新任务状态为 `FAILED`。
+*   **错误处理**: 捕获异常并自动更新任务状态为 `FAILED`，并将错误信息写入 `error` 字段。
 *   **限流重试**: 针对 `RateLimitException` 实现指数退避重试。
 
 ### 3.5 策略层 (Handlers)
@@ -97,6 +99,7 @@ graph TD
 
 | 模块 | 关键文件 | 职责 |
 | :--- | :--- | :--- |
+| **Definitions** | `task_manager/definitions.py` | 任务类型枚举, 队列配置, 输出前缀配置 |
 | **Models** | `task_manager/models.py` | 数据库定义, FSM 状态机 |
 | **API** | `task_manager/api.py` | HTTP 接口, 路径预处理 |
 | **Schemas** | `task_manager/schemas.py` | API 输入输出校验 |

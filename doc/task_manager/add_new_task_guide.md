@@ -7,20 +7,34 @@
 
 ---
 
-## 1. 定义任务类型 (Models)
+## 1. 定义任务类型与配置 (Definitions)
 
-首先在数据库层面定义新的任务枚举。
+这是任务定义的 **Single Source of Truth**。
 
-**文件**: `task_manager/models.py`
+**文件**: `task_manager/definitions.py`
 
 ```python
-class Task(models.Model):
-    class TaskType(models.TextChoices):
-        # ... 现有任务 ...
-        
-        # [新增] 定义枚举值 (建议全大写)
-        MY_NEW_TASK = 'MY_NEW_TASK', _('My New Task Description')
+class TaskType(models.TextChoices):
+    # ... 现有任务 ...
+    
+    # [新增] 定义枚举值 (建议全大写)
+    MY_NEW_TASK = 'MY_NEW_TASK', _('My New Task Description')
+
+# ...
+
+# 任务配置注册表
+TASK_CONFIGS = {
+    # ... 现有配置 ...
+    
+    # [新增] 配置队列和输出前缀
+    # queue: 指定 Celery 队列 (e.g., 'queue-gemini', 'queue-io', 'queue-audio')
+    # output_prefix: 指定输出文件前缀 (e.g., 'my_result')，若不需要自动生成输出路径可设为 None
+    TaskType.MY_NEW_TASK: TaskConfig(queue='queue-gemini', output_prefix="my_result"),
+}
 ```
+
+> **注意**: `task_manager/models.py` 会自动引用这里的 `TaskType`，无需手动修改 Model 定义。
+> **注意**: `task_manager/signals.py` 和 `task_manager/api.py` 会自动读取 `TASK_CONFIGS` 来配置路由和输出路径。
 
 ## 2. 开放 API 校验 (Schemas)
 
@@ -29,14 +43,9 @@ class Task(models.Model):
 **文件**: `task_manager/schemas.py`
 
 ```python
-# 在 validate_task_type 方法或 allowed 列表中
-allowed = [
-    # ... 现有任务 ...
-    
-    # [新增] 允许该字符串通过 Pydantic 校验
-    Task.TaskType.MY_NEW_TASK, 
-    "MY_NEW_TASK" # 兼容字符串形式
-]
+# 在 validate_task_type 方法中
+# 代码会自动读取 Task.TaskType.values，通常无需修改代码，
+# 除非你有特殊的白名单逻辑。
 ```
 
 ## 3. 注册 Handler (Handlers)
@@ -51,6 +60,7 @@ allowed = [
 from task_manager.handlers.registry import HandlerRegistry
 from task_manager.handlers.base import BaseTaskHandler
 from task_manager.models import Task
+from core.exceptions import BizException # 推荐使用 BizException 抛出业务错误
 
 # [新增] 使用装饰器注册
 @HandlerRegistry.register(Task.TaskType.MY_NEW_TASK)
@@ -59,8 +69,11 @@ class MyNewTaskHandler(BaseTaskHandler):
         self.logger.info(f"🚀 Starting MY_NEW_TASK: {task.id}")
         
         # ... 业务逻辑 ...
+        # 1. 解析 Payload
+        # 2. 执行业务
+        # 3. 结果落盘
         
-        return {"result": "success"}
+        return {"result": "success", "output_file_path": "..."}
 ```
 
 ### 3.2 确保 Handler 被加载
@@ -76,43 +89,12 @@ from . import my_new_task
 # from .refinery import my_new_task
 ```
 
-## 4. 配置队列路由 (Signals)
-
-决定这个任务由哪个 Celery Worker 队列处理（例如 `queue_gemini` 用于 AI 任务，`celery` 用于普通任务）。
-
-**文件**: `task_manager/signals.py`
-
-```python
-QUEUE_ROUTING = {
-    # ... 现有映射 ...
-    
-    # [新增] 指定队列
-    Task.TaskType.MY_NEW_TASK: 'queue_gemini', 
-}
-```
-
-## 5. 配置输出路径 (API)
-
-决定任务创建时，`absolute_output_path` 的文件名前缀。
-
-**文件**: `task_manager/api.py`
-
-```python
-# 在 create_task 函数中
-    output_prefixes = {
-        # ... 现有前缀 ...
-        
-        # [新增] 定义输出文件前缀 (e.g. my_result_uuid.json)
-        Task.TaskType.MY_NEW_TASK.value: "my_result",
-    }
-```
-
 ---
 
 ## 总结检查清单 (Checklist)
 
-- [ ] **Model**: Enum 添加了吗？
-- [ ] **Schema**: API 允许这个 Enum 传参了吗？
+- [ ] **Definitions**: `TaskType` 枚举添加了吗？`TASK_CONFIGS` 配置了吗？
 - [ ] **Handler**: 代码写了吗？`__init__.py` 引入了吗？
-- [ ] **Signal**: 队列路由配了吗？
-- [ ] **API**: 输出文件前缀配了吗？
+- [ ] **Migration**: 如果修改了 `models.py` (通常不需要)，运行迁移了吗？
+
+> **提示**: 现在的架构通过 `definitions.py` 实现了配置驱动，大大简化了 `signals.py` (路由) 和 `api.py` (输出路径) 的修改成本。
