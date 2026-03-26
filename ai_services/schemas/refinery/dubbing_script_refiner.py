@@ -9,6 +9,7 @@ class AsrSegment(BaseModel):
     start: float
     end: float
     text: str
+    confidence: float = Field(1.0, description="ASR confidence score (0.0-1.0)")
 
 class OcrText(BaseModel):
     start_time: float
@@ -59,8 +60,8 @@ class RefinedSegment(BaseModel):
     original_ocr: Optional[str]
     refined_text: Optional[str]
     source_of_truth: str # Keep as string to allow for future values from LLM
-    reasoning: str
     confidence_score: Optional[float] = Field(None, description="Confidence score of the refinement (0.0-1.0)")
+    processing_method: str = Field("LLM_INFERENCE", description="RULE_ENGINE or LLM_INFERENCE")
 
 class Stats(BaseModel):
     processing_time_ms: int

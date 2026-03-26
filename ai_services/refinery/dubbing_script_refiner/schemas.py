@@ -10,8 +10,7 @@ class LLMRefinedSegment(BaseModel):
     start: float
     end: float
     refined_text: Optional[str]
-    source_of_truth: str = Field(..., description="e.g. ASR_OCR_MERGED, ASR_ONLY, OCR_IGNORED")
-    reasoning: str
+    source_of_truth: str = Field(..., description="e.g. TRUST_OCR_CORRECTION, TRUST_ASR_RAW, DISCARD_NOISE")
 
 class BatchRefinementResponse(BaseModel):
     """

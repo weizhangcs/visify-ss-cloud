@@ -35,10 +35,11 @@ class DubbingScriptRefinerService(AIServiceMixin):
     DEFAULT_MODEL = "gemini-2.5-pro"
     DEFAULT_TEMP = 0.2
     DEFAULT_MAX_RETRIES = 3
-    DEFAULT_CHUNK_DURATION = 180  # 3 minutes
+    DEFAULT_CHUNK_DURATION = 60   # [Fix] 180s -> 60s. 避免对话密集时 JSON Response 超过 Max Output Tokens 导致截断
     DEFAULT_CHUNK_OVERLAP = 10    # 10 seconds
     DEFAULT_ALIGNMENT_TOLERANCE = 1.0 # 1 second
-    DEFAULT_SIMILARITY_THRESHOLD = 0.2 # 默认相似度阈值
+    DEFAULT_FAST_PATH_SIMILARITY = 0.9 # 快速通道相似度阈值
+    DEFAULT_FAST_PATH_CONFIDENCE = 0.8 # 快速通道置信度阈值
 
     def __init__(self, logger: logging.Logger, gemini_processor: GeminiProcessor, cost_calculator: CostCalculator):
         self.logger = logger
@@ -87,7 +88,6 @@ class DubbingScriptRefinerService(AIServiceMixin):
         chunk_duration = config.get("chunk_duration_seconds", self.DEFAULT_CHUNK_DURATION)
         chunk_overlap = config.get("chunk_overlap_seconds", self.DEFAULT_CHUNK_OVERLAP)
         alignment_tolerance = config.get("alignment_tolerance_seconds", self.DEFAULT_ALIGNMENT_TOLERANCE)
-        similarity_threshold = config.get("similarity_threshold", self.DEFAULT_SIMILARITY_THRESHOLD)
 
         if task_input.mode == "DEBUG" and task_input.service_params:
             sp = task_input.service_params
@@ -104,18 +104,54 @@ class DubbingScriptRefinerService(AIServiceMixin):
         # 3. Pre-processing: Align and Chunk data
         dialogue_unit_chunks = self._align_and_chunk_inputs(
             task_input.asr_segments, task_input.ocr_texts,
-            chunk_duration, chunk_overlap, alignment_tolerance, similarity_threshold
+            chunk_duration, chunk_overlap, alignment_tolerance
         )
         self.logger.info(f"Data processed into {len(dialogue_unit_chunks)} chunks.")
 
         # 4. Batch processing
         # [Optimization] Store tuples of (LLMResult, OriginalUnit) to restore original text later
-        all_results: List[Tuple[LLMRefinedSegment, Dict]] = []
+        all_llm_results: List[Tuple[LLMRefinedSegment, Dict]] = []
+        all_fast_path_segments: List[RefinedSegment] = []
         total_usage = {}
 
         for i, chunk in enumerate(dialogue_unit_chunks):
             self.logger.info(f"Processing Batch {i + 1}/{len(dialogue_unit_chunks)}...")
             if not chunk:
+                continue
+
+            # --- Router Logic: Split into Fast Path (Rule) and Slow Path (LLM) ---
+            fast_path_units = []
+            slow_path_units = []
+
+            for unit in chunk:
+                # Check conditions for Fast Path
+                # 1. Must have both ASR and OCR
+                # 2. Content must be strictly identical (ignoring whitespace) to avoid logic errors (e.g. typos, truncation)
+                is_fast_path = False
+                if unit.get('asr') and unit.get('ocr'):
+                    # [Strict Mode] Only trust Rule Engine if texts are identical
+                    if unit['asr'].text.strip() == unit['ocr'].text.strip():
+                        is_fast_path = True
+
+                if is_fast_path:
+                    # Execute Rule Engine
+                    # Trust OCR text for content, ASR for timing
+                    seg = RefinedSegment(
+                        start=unit['asr'].start,
+                        end=unit['asr'].end,
+                        original_asr=unit['asr'].text,
+                        original_ocr=unit['ocr'].text,
+                        refined_text=unit['ocr'].text, # Prefer OCR text
+                        source_of_truth="TRUST_BOTH_HIGH",
+                        confidence_score=round((unit['asr'].confidence + unit['ocr'].avg_score) / 2, 3),
+                        processing_method="RULE_ENGINE"
+                    )
+                    all_fast_path_segments.append(seg)
+                else:
+                    slow_path_units.append(unit)
+
+            if not slow_path_units:
+                self.logger.info("  -> All units handled by Rule Engine. Skipping LLM.")
                 continue
 
             # 4.1 Render Prompt
@@ -124,7 +160,7 @@ class DubbingScriptRefinerService(AIServiceMixin):
                 if not (self.prompts_dir / template_name).exists():
                     template_name = "script_refinement_generic.j2"
 
-                prompt = self.prompt_manager.render(template_name, {"dialogue_units": chunk, "lang": task_input.lang})
+                prompt = self.prompt_manager.render(template_name, {"dialogue_units": slow_path_units, "lang": task_input.lang})
             except Exception as e:
                 raise BizException(ErrorCode.FILE_IO_ERROR, f"Prompt rendering failed: {e}")
 
@@ -148,21 +184,26 @@ class DubbingScriptRefinerService(AIServiceMixin):
                         # Let's attach the source chunk to the results for context if needed, 
                         # but actually, if we removed original_* from LLM schema, we need to look them up from 'chunk'.
                         
-                        # Simple matching strategy: Find the closest unit in 'chunk' for each result
+                        # Simple matching strategy: Find the closest unit in 'slow_path_units' for each result
                         for seg in response.refined_script:
                             # Find matching unit in chunk based on start time (approximate match)
-                            matched_unit = next((u for u in chunk if abs(u['start'] - seg.start) < 0.1), None)
-                            all_results.append((seg, matched_unit))
+                            matched_unit = next((u for u in slow_path_units if abs(u['start'] - seg.start) < 0.1), None)
+                            all_llm_results.append((seg, matched_unit))
                     break
                 except Exception as e:
                     if attempt == max_retries - 1:
                         self.logger.error(f"❌ Batch inference failed: {e}")
-                        raise e
+                        raise BizException(ErrorCode.LLM_INFERENCE_ERROR, f"LLM Inference failed: {e}")
                     self.logger.warning(f"⚠️ Retry {attempt + 1}: {e}")
                     time.sleep(2 * (attempt + 1))
 
         # 5. Post-processing and Response formatting
-        final_script = self._post_process_results(all_results)
+        # 5.1 Convert LLM results
+        llm_segments = self._convert_llm_results(all_llm_results)
+        # 5.2 Merge with Fast Path results
+        full_script = llm_segments + all_fast_path_segments
+        # 5.3 Sort and Deduplicate
+        final_script = self._sort_and_deduplicate(full_script)
 
         # 6. Cost calculation
         final_stats_obj = UsageStats(model_used=model_name, **total_usage)
@@ -191,8 +232,7 @@ class DubbingScriptRefinerService(AIServiceMixin):
         ).model_dump()
 
     def _align_and_chunk_inputs(self, asr_list: List[AsrSegment], ocr_list: List[OcrText],
-                                chunk_duration: int, chunk_overlap: int, tolerance: float,
-                                similarity_threshold: float) -> List[List[Dict]]:
+                                chunk_duration: int, chunk_overlap: int, tolerance: float) -> List[List[Dict]]:
         """
         [V2] Implements a two-pass, ASR-anchored alignment strategy with similarity gating.
         """
@@ -218,13 +258,16 @@ class DubbingScriptRefinerService(AIServiceMixin):
                         max_similarity = similarity
                         best_match_ocr = ocr_candidate
 
-            # 3. Similarity Gating: Merge only if similarity is above threshold
-            if best_match_ocr and max_similarity >= similarity_threshold and id(best_match_ocr) not in processed_ocr_ids:
+            # 3. Merge Strategy: Always attach the best OCR candidate if found.
+            # We rely on the LLM (Slow Path) or Rule Engine (Fast Path) to determine if the OCR is relevant.
+            # This enforces "ASR Anchoring" - if ASR exists, we use its timeline.
+            if best_match_ocr and id(best_match_ocr) not in processed_ocr_ids:
                 dialogue_units.append({
                     'start': asr.start,
                     'end': asr.end,
                     'asr': asr,
-                    'ocr': best_match_ocr
+                    'ocr': best_match_ocr,
+                    'similarity': max_similarity # Store similarity for Router
                 })
                 processed_ocr_ids.add(id(best_match_ocr))
             else:
@@ -255,12 +298,12 @@ class DubbingScriptRefinerService(AIServiceMixin):
 
         return chunks
 
-    def _post_process_results(self, results: List[Tuple[LLMRefinedSegment, Optional[Dict]]]) -> List[RefinedSegment]:
+    def _convert_llm_results(self, results: List[Tuple[LLMRefinedSegment, Optional[Dict]]]) -> List[RefinedSegment]:
         """
-        Post-processes LLM results, calculates confidence scores, and converts to public schema.
+        Converts LLM results to public schema and calculates confidence scores.
         Restores original_asr/ocr from source units since LLM no longer outputs them.
         """
-        final_script = []
+        converted_segments = []
         for res, source_unit in results:
             # Construct public response, restoring original text from source_unit if available
             public_res = RefinedSegment(
@@ -270,51 +313,101 @@ class DubbingScriptRefinerService(AIServiceMixin):
                 original_ocr=source_unit['ocr'].text if source_unit and source_unit.get('ocr') else None,
                 refined_text=res.refined_text,
                 source_of_truth=res.source_of_truth,
-                reasoning=res.reasoning
+                processing_method="LLM_INFERENCE"
             )
 
             # Calculate confidence score based on CR suggestion
             score = 0.0
-            if public_res.source_of_truth == "ASR_OCR_MERGED":
+            if public_res.source_of_truth == "TRUST_OCR_CORRECTION":
                 score = 0.9
-            elif public_res.source_of_truth in ["ASR_ONLY", "OCR_PRIMARY"]:
+            elif public_res.source_of_truth in ["TRUST_ASR_RAW", "TRUST_OCR_RECOVERY"]:
                 score = 0.75
-            elif public_res.source_of_truth == "CONTEXT_REPAIR":
-                score = 0.6
-            elif public_res.source_of_truth == "OCR_IGNORED":
+            elif public_res.source_of_truth == "DISCARD_NOISE":
                 score = 1.0
 
             public_res.confidence_score = score
-            final_script.append(public_res)
+            converted_segments.append(public_res)
+        
+        return converted_segments
 
-        final_script.sort(key=lambda x: x.start)
+    def _sort_and_deduplicate(self, segments: List[RefinedSegment]) -> List[RefinedSegment]:
+        """
+        Sorts segments by start time and removes duplicates caused by:
+        1. Sliding window overlap (exact/near-exact start time).
+        2. Ghosting (identical text appearing sequentially).
+        3. Unmerged overlaps (ASR-only vs OCR-only covering same time).
+        """
+        segments.sort(key=lambda x: x.start)
 
-        # [Deduplication] Remove duplicates caused by sliding window overlap
-        if not final_script:
+        if not segments:
             return []
 
         deduplicated_script = []
-        current_best = final_script[0]
+        deduplicated_script.append(segments[0])
 
-        for i in range(1, len(final_script)):
-            candidate = final_script[i]
+        for i in range(1, len(segments)):
+            current = segments[i]
+            prev = deduplicated_script[-1]
 
-            # Check for duplicate based on start time (tolerance 0.1s)
-            if abs(candidate.start - current_best.start) < 0.1:
-                # Duplicate found. Apply selection strategy:
-                # 1. Higher confidence score wins
-                # 2. If equal, keep the first one (current_best)
-                score_curr = current_best.confidence_score or 0.0
-                score_cand = candidate.confidence_score or 0.0
+            # --- Logic 1: Exact/Near-Exact Start Time (Sliding Window Artifacts) ---
+            if abs(current.start - prev.start) < 0.1:
+                if (current.confidence_score or 0) > (prev.confidence_score or 0):
+                    deduplicated_script.pop()
+                    deduplicated_script.append(current)
+                continue
 
-                if score_cand > score_curr:
-                    current_best = candidate
-            else:
-                # No overlap, commit current_best and move to next
-                deduplicated_script.append(current_best)
-                current_best = candidate
+            # --- Logic 2: Textual Duplication (Ghosting) ---
+            text_sim = 0.0
+            if current.refined_text and prev.refined_text:
+                 text_sim = SequenceMatcher(None, current.refined_text, prev.refined_text).ratio()
+            
+            is_temporally_close = (current.start < prev.end + 0.5)
+            
+            if text_sim > 0.9 and is_temporally_close:
+                prev_dur = prev.end - prev.start
+                curr_dur = current.end - current.start
+                
+                if abs((current.confidence_score or 0) - (prev.confidence_score or 0)) > 0.1:
+                     if (current.confidence_score or 0) > (prev.confidence_score or 0):
+                        deduplicated_script.pop()
+                        deduplicated_script.append(current)
+                else:
+                    if curr_dur > prev_dur:
+                        deduplicated_script.pop()
+                        deduplicated_script.append(current)
+                continue
 
-        # Append the last pending segment
-        deduplicated_script.append(current_best)
+            # --- Logic 3: Significant Temporal Overlap (Unmerged Conflict) ---
+            overlap_start = max(prev.start, current.start)
+            overlap_end = min(prev.end, current.end)
+            overlap_duration = max(0, overlap_end - overlap_start)
+            
+            min_duration = min(prev.end - prev.start, current.end - current.start)
+            
+            if min_duration > 0 and (overlap_duration / min_duration) > 0.5:
+                def get_priority(seg):
+                    st = seg.source_of_truth
+                    if st == "TRUST_BOTH_HIGH": return 5
+                    if st == "TRUST_OCR_CORRECTION": return 4
+                    if st == "TRUST_OCR_RECOVERY": return 3
+                    if st == "TRUST_ASR_RAW": return 2
+                    if st == "DISCARD_NOISE": return 0
+                    return 1
+                
+                p_prev = get_priority(prev)
+                p_curr = get_priority(current)
+                
+                if p_curr > p_prev:
+                    deduplicated_script.pop()
+                    deduplicated_script.append(current)
+                elif p_curr < p_prev:
+                    pass
+                else:
+                    if (current.confidence_score or 0) > (prev.confidence_score or 0):
+                        deduplicated_script.pop()
+                        deduplicated_script.append(current)
+                continue
+
+            deduplicated_script.append(current)
 
         return deduplicated_script

@@ -1,28 +1,38 @@
 # 角色与任务
 你是一位专业的视频字幕校对专家。你的任务是分析原始的 ASR (语音识别) 和 OCR (屏幕文字识别) 数据，输出一份校对后的精准字幕。
 
-## 核心指令
-1.  **锚点与融合逻辑**:
-    *   输入数据已经过预处理对齐。如果一个单元同时包含 ASR 和 OCR，说明它们在时间与内容上均已匹配，请将它们视为同一句台词处理。
-    *   **文字裁定**: OCR 提取自视频硬字幕，通常文字更准。当两者不一致时（如 ASR 是“散发”，OCR 是“38”），请优先采纳 OCR 的字形，来修正 ASR 中的同音异义词或错别字。
-    *   **时间轴基准**: 只要 ASR 数据存在，**必须**使用 ASR 的 start/end 时间戳（即使最终采用了 OCR 的文字）。仅当 ASR 为 null 且判定使用 OCR 时，才使用 OCR 的时间戳。
-    *   **多语种过滤**: 如果 OCR 识别结果包含多语种（如中英双语），在进行“文字裁定”时，请仅参考其**中文部分**，忽略外语部分。
-2.  **内容精炼**:
-    *   **修正口语**: 去掉无意义的语气词（如“呃”、“啊”），补全标点符号，使句子通顺。
-    *   **严禁合并句子**: 每一个输入单元必须对应一个输出条目。即使连续多个单元语义连贯，也**严禁合并**为一句话，必须保留原始的切分颗粒度，以确保后续分角色标注的准确性。
-    *   **识别干扰项**: 如果 OCR 识别到的是非对话性质的屏幕文字（如特效字、标题、水印、人名标签【导演: XXX】），请将其标记为 `OCR_IGNORED`，并且 `refined_text` 必须为 `null`。
-3.  **异常情况裁定 (`source_of_truth`)**:
-    * **ASR_OCR_MERGED**: ASR 与 OCR 内容匹配，你参考 OCR 修正了 ASR 的错字或同音字。
-    * **ASR_ONLY (风险监测)**: 只有 ASR 有内容。此时需进行严格的“噪音过滤”：
-      *  语气词过滤: 如果内容仅为“呃、啊、哦、哈”等无意义语气词，请判定为 OCR_IGNORED，refined_text 设为 null。
-      *  幻觉/噪音过滤 (核心): 如果 ASR 识别出的内容与前后文逻辑完全断裂（例如：前后都在聊工作，ASR 突然跳出一句“不进去”或“好的”，且此时 OCR 为空），请高度怀疑这是背景杂音触发的 ASR 幻觉。在这种孤立、无意义、且无视觉（OCR）支撑的情况下，请优先将其判定为 OCR_IGNORED，refined_text 设为 null。
-    * **OCR_PRIMARY (ASR 补盲)**: 只有 OCR 有内容（ASR 为 `null`）,若 OCR 内容包含人称代词（我、你）、语气词（吗、呢）或高置信度对话，说明 ASR 发生了遗漏，请恢复此台词。
-4.  **推理指南**:
-    *   **上下文连贯性 (Contextual Coherence)**: 不要孤立地分析每一行。请结合前后文判断语义流。
-        *   例如：如果前文在问“电话号码是多少”，当前行 ASR 识别为无关词（如“看到你”）而 OCR 是数字（如“138”），应判定 ASR 识别错误，采纳 OCR 内容 (`OCR_PRIMARY`)。
-    *   在决定 `source_of_truth` 时，请遵循**“语义优先”**原则。
-    *   如果一段 OCR 文字在 ASR 中完全没有对应的声音特征，且 OCR 内容看起来像台词，请相信 OCR，判定 ASR 存在门控遗漏。
-    *   如果一段 OCR 文字虽然置信度高，但其内容与前后的 ASR 语境完全无关（如突如其来的广告字、人名介绍），请相信 ASR 的沉默，判定为 `OCR_IGNORED`。
+## 第一步：信任源裁定 (Trust Source Arbitration)
+请基于内容和上下文，将每个单元归类为以下四种场景之一：
+
+1.  **TRUST_OCR_CORRECTION (OCR修正)**
+    *   **场景**: 单元同时包含 ASR 和 OCR，且两者内容相关（如发音相似）但字形不同。
+    *   **规则**: OCR 提取自硬字幕，通常更准。采纳 OCR 的文字修正 ASR 的错别字。
+
+2.  **TRUST_ASR_RAW (ASR直出)**
+    *   **场景**: 仅有 ASR 数据，或 OCR 为无关噪音。
+    *   **规则**: ASR 内容清晰、语义连贯且符合上下文对话逻辑。采纳 ASR 文字。
+
+3.  **TRUST_OCR_RECOVERY (OCR补盲)**
+    *   **场景**: 仅有 OCR 数据，或 ASR 为噪音/幻觉。
+    *   **规则**: OCR 为高置信度的清晰对白（含代词、语气词），且填补了 ASR 的静音空缺。采纳 OCR 文字。
+
+4.  **DISCARD_NOISE (噪音丢弃)**
+    *   **场景**: 任意以下情况：
+        *   **视觉噪音**: OCR 为非对话文字（水印、特效字、人名标签）。
+        *   **听觉噪音**: ASR 仅为无意义语气词（呃、啊、哦）。
+        *   **幻觉**: ASR 内容孤立、置信度低，且与前后文逻辑断裂（如突兀的“好的”）。
+    *   **规则**: 标记为噪音，`refined_text` 设为 `null`。
+
+## 第二步：后处理与精修规则 (Post-processing Rules)
+在确定信任源后，执行以下精修逻辑：
+
+1.  **文字精炼**: 补全标点符号，去除冗余语气词，确保语句通顺。若 OCR 为双语，仅取中文。
+2.  **严禁合并**: 必须保持输入单元与输出条目 1:1 对应，严禁将多行合并为一行。
+3.  **时间轴原则**:
+    *   若 ASR 存在且有效（TRUST_ASR_RAW, TRUST_OCR_CORRECTION），**必须**使用 ASR 时间轴。
+    *   仅在 ASR 缺失或无效（TRUST_OCR_RECOVERY）时，使用 OCR 时间轴。
+4.  **上下文连贯性**:
+    *   不要孤立判断。例如：前文问电话，当前行 ASR 乱码但 OCR 是数字，应判定为 `TRUST_OCR_RECOVERY` 而非噪音。
 
 ## 输入数据
 以下是按时间顺序排列的、经过预处理的对话单元 (Dialogue Units)。每个单元可能包含 ASR、OCR 或两者都有。
@@ -31,7 +41,7 @@
 ---
 [单元 {{ loop.index }}]
 - 时间: {{ "%.2f"|format(unit.start) }}s - {{ "%.2f"|format(unit.end) }}s
-- ASR: {{ unit.asr.text if unit.asr else 'null' }}
+- ASR: {{ unit.asr.text if unit.asr else 'null' }} (置信度: {{ "%.2f"|format(unit.asr.confidence) if unit.asr else 'N/A' }})
 - OCR: {{ unit.ocr.text if unit.ocr else 'null' }} (置信度: {{ "%.2f"|format(unit.ocr.avg_score) if unit.ocr else 'N/A' }})
 {% endfor %}
 
@@ -45,15 +55,13 @@
       "start": 0.45,
       "end": 2.25,
       "refined_text": "今天天气真不错。",
-      "source_of_truth": "ASR_OCR_MERGED",
-      "reasoning": "结合 ASR 和 OCR 的内容，并进行了口语化修正和标点补全。"
+      "source_of_truth": "TRUST_OCR_CORRECTION",
     },
     {
       "start": 15.1,
       "end": 18.3,
       "refined_text": null,
-      "source_of_truth": "OCR_IGNORED",
-      "reasoning": "识别为非对话性质的屏幕文字，予以忽略。"
+      "source_of_truth": "DISCARD_NOISE",
     }
   ]
 }

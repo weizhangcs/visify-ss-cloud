@@ -99,7 +99,7 @@ def get_task_detail(request, task_id: int):
         status=task.status,
         task_type=task.task_type,
         result=task.result,
-        error=task.error,
+        error=task.error or None,  # [Fix] 空字典转为 None，避免 Pydantic 校验必填字段失败
         created=task.created,
         modified=task.modified,
         download_url=download_url

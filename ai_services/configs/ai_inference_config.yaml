@@ -81,7 +81,7 @@ editing_director:
 
 # 剧本精修服务 (DubbingScriptRefiner)
 dubbing_script_refiner:
-  mode: "PROD"
+  mode: "DEBUG"
   default_model: "gemini-2.5-flash"
   temperature: 0.1
   max_retries: 3
@@ -92,3 +92,9 @@ dubbing_script_refiner:
   # 时序对齐 (Temporal Alignment)
   alignment_tolerance_seconds: 1.0 # ASR 与 OCR 时间戳对齐的容差 (±1s)
   similarity_threshold: 0.2 # [Fix] ASR与OCR内容相似度阈值，低于此值则不视为匹配
+
+# 角色身份终结者 (CharacterRoleFinalizer)
+character_role_finalizer:
+  mode: "DEBUG"
+  default_model: "gemini-2.5-pro" # 需要较强的推理能力处理上下文
+  temperature: 0.1

@@ -1,9 +1,10 @@
+from task_manager.models import Task
 from task_manager.handlers.registry import HandlerRegistry
 from ai_services.refinery.dubbing_script_refiner.service import DubbingScriptRefinerService
 from ai_services.schemas.refinery.dubbing_script_refiner import DubbingScriptRefinerPayload
 from .base import RefineryBaseHandler
 
-@HandlerRegistry.register("REFINERY_DUBBING_SCRIPT_REFINER")
+@HandlerRegistry.register(Task.TaskType.REFINERY_DUBBING_SCRIPT_REFINER)
 class RefineryDubbingScriptRefinerHandler(RefineryBaseHandler):
     """
     [Handler] [Refinery] 剧本精修任务

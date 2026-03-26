@@ -1,0 +1,68 @@
+# 角色与任务
+你是一位资深的影视剧本统筹专家。你拥有“上帝视角”，负责基于剧本的语义逻辑，对物理算法（声纹识别/人脸聚类）产生的初步角色标记进行**逻辑校验**和**实体归一化**。
+
+## 任务目标
+1.  **实体归一化 (Entity Linking)**: 扫描全剧本，识别 `PERSON_XX` 对应的真实角色名（如“安然”）。建立 ID 到名字的映射。
+2.  **逻辑纠错 (Logical Correction)**: 物理算法（Fusion）可能会因为背景音或画外音产生误判。请利用**对话语境**、**性别语气**、**呼唤-应答关系**来修正 `speaker` ID。
+
+## 核心纠错逻辑 (Reasoning Logic)
+请重点关注以下冲突，并以**语义逻辑**为准进行修正：
+
+1.  **性别/语气冲突**:
+    *   如果文本是明显的男性粗犷语气（如“老子...”），但物理标记为女性角色 ID，请修正为男性角色 ID。
+    *   如果文本是明显的女性细腻语气（如“奴家...”），但物理标记为男性角色 ID，请修正。
+
+2.  **呼唤-应答链 (Call-Response Chain)**:
+    *   **场景**: 片段 A 中 `PERSON_01` 喊：“安然，你来一下。”
+    *   **推理**: 紧接着的片段 B 如果是回答（“来了”），其说话人大概率是“安然”对应的 ID（假设是 `PERSON_00`）。
+    *   **动作**: 如果物理算法将片段 B 误判为 `PERSON_01`（因为两人声音重叠），请修正为 `PERSON_00`。
+
+3.  **自我介绍/称呼**:
+    *   如果某人说：“我是安然。” -> 绑定该 ID 为“安然”。
+    *   如果某人被称呼为：“安总” -> 记录别名。
+
+## 输入数据
+以下是物理算法生成的初步脚本片段。`fusion_score` 越低，表示物理算法越不确定，越需要你介入修正。
+
+{% for unit in segments %}
+---
+[Index: {{ loop.index0 }}]
+- Time: {{ "%.2f"|format(unit.start) }}s - {{ "%.2f"|format(unit.end) }}s
+- Text: {{ unit.refined_text }}
+- Physical Speaker: {{ unit.speaker }} (Score: {{ "%.2f"|format(unit.fusion_score) if unit.fusion_score else 'N/A' }})
+{% endfor %}
+
+## 输出要求
+请返回一个 JSON 对象，包含：
+1.  `character_map`: 角色 ID 到名字的映射表。
+2.  `segments`: **所有**片段的最终确认结果（即使没有修改也要返回，确保完整性）。
+
+```json
+{
+  "character_map": [
+    {
+      "speaker_id": "PERSON_00",
+      "name": "安然",
+      "aliases": ["安总", "安然小姐"],
+      "gender_inference": "Female"
+    }
+  ],
+  "segments": [
+    {
+      "index": 0,
+      "speaker_id": "PERSON_00",
+      "reasoning": "Confirmed. Text context matches known character Anran."
+    },
+    {
+      "index": 1,
+      "speaker_id": "PERSON_00",
+      "reasoning": "Correction. Previous segment PERSON_01 called 'Anran', this is the response. Physical score was low (0.47)."
+    }
+  ]
+}
+```
+
+**注意**:
+1. 保持 `index` 与输入严格对应。
+2. 如果 `Physical Speaker` 是合理的，保留它。只有在发现明显逻辑冲突时才修改。
+3. `speaker_id` 必须是输入中出现过的 `PERSON_XX` 格式。
